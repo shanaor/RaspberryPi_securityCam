@@ -1,0 +1,130 @@
+/* Basic Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Body Styling */
+body {
+  background: #f4f6f8;
+  font-family: Arial, sans-serif;
+  color: #333;
+  padding: 20px;
+}
+
+/* Header Styling */
+h1 {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+/* Section Container */
+section {
+  background: #fff;
+  margin: 20px auto;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  max-width: 800px;
+}
+
+/* Section Headings */
+section h2 {
+  margin-bottom: 15px;
+  color: #444;
+}
+
+/* Live Feed Image Styling */
+#live-feed {
+  width: 100%;
+  max-width: 640px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  display: block;
+  margin: 0 auto 15px;
+}
+
+/* Form Styling */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+form input[type="text"],
+form input[type="password"] {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+form button {
+  padding: 10px;
+  border: none;
+  background: #007BFF;
+  color: #fff;
+  font-size: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+form button:hover {
+  background: #0056b3;
+}
+
+/* Face Result Image Styling */
+#face-result img {
+  display: block;
+  max-width: 300px;
+  margin: 15px auto 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* General Button Styling for non-form buttons */
+button {
+  padding: 10px 20px;
+  border: none;
+  background: #28a745;
+  color: #fff;
+  font-size: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background: #218838;
+}
+
+/* Registered Faces List */
+#faces-list {
+  list-style: none;
+  padding: 0;
+}
+
+#faces-list li {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+  section {
+    margin: 15px;
+    padding: 15px;
+  }
+  
+  form input,
+  form button,
+  button {
+    font-size: 0.9rem;
+  }
+  
+  #face-result img {
+    max-width: 100%;
+  }
+}

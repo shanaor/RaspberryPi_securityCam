@@ -1,3 +1,4 @@
+from config.config import CONFIGTXT, CONFIG_BACKUP_DIR , BRIGHTNESS_LOG_FILE
 from python_standalones.automatic_camera_functions import get_frame_safe
 from python_standalones.logger import log_event
 
@@ -5,38 +6,55 @@ import cv2
 import numpy as np
 import os
 import time
+import shutil
+import datetime
 
 # Threshold for night vision activation
 BRIGHTNESS_THRESHOLD = 50  # Adjust based on testing
-LOG_FILE = "/cameralog/camera_brightness_log.txt"  # File to store brightness log for debuging purposes
 last_date = time.strftime('%Y-%m-%d')  # Store the current date
+
+os.makedirs(CONFIG_BACKUP_DIR, exist_ok=True)
 
 def get_brightness(frame):
     """Calculate the average brightness of a frame."""
+    if frame is None or frame.size == 0:
+        raise ValueError("Invalid frame received")
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     return np.mean(gray)
 
 def get_current_mode():
-    """Check the current mode from config.txt."""
+    """Check the current mode from config.txt. which his path is in config.py saved to CONFIGTXT"""
     try:
-        with open("/boot/config.txt", "r") as file:
+        with open(f"{CONFIGTXT}", "r") as file:
             for line in file:
                 if "disable_camera_led=1" in line:
                     return "night"
         return "normal"
+    except FileNotFoundError:
+        log_event("critical", f"Config file not found: {CONFIGTXT} at file day_night.py")
+        return None
+    except PermissionError:
+        log_event("critical", f"Permission denied reading {CONFIGTXT} at file day_night.py")
+        return None
     except Exception as e:
-        log_event("critical", f"get_current_mode function error at day_night.py: {e}")
+        log_event("critical", f"Unexpected error at get_current_mode function at file day_night.py: {e}")
         return None
     
 def update_config(new_mode):
-    """Update the Raspberry Pi config file to switch modes."""
-    config_path = "/boot/config.txt"
+    """Update the Raspberry Pi config file to switch modes.
+    CONFIGTXT is the config.txt path imported from config.py."""
 
     try:
+        # Create a timestamped backup for config
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        backup_path = f"{CONFIG_BACKUP_DIR}/config_{timestamp}.bak"
+        shutil.copy(CONFIGTXT, backup_path)
+        log_event("info", f"Config backup created at {backup_path}")
+        
         # Read and modify config
-        with open(config_path, "r") as file:
+        with open(f"{CONFIGTXT}", "r") as file:
             lines = file.readlines()
-        with open(config_path, "w") as file:
+        with open(f"{CONFIGTXT}", "w") as file:
             for line in lines:
                 if "disable_camera_led=" in line:
                     continue  # Remove existing setting
@@ -45,8 +63,12 @@ def update_config(new_mode):
                 file.write("disable_camera_led=1\n")
 
         # Reboot after scheduled interval
-        log_event("warning", f"Switching to {new_mode} mode. Restarting system in 5 minutes...")
-        os.system("sleep 300 && sudo reboot &")  # Delay reboot by 5 minutes
+        log_event("warning", f"Function update_config in day_night.py activated. Switching to {new_mode} mode. Restarting system in 2 minutes...")
+        os.system("sudo shutdown -r +2")  # Reboots in 2 minutes and sends SIGTERM to the systems
+    except FileNotFoundError:
+        log_event("critical", f"Config file not found: {CONFIGTXT} at function update_config in file day_night.py")
+    except PermissionError:
+        log_event("critical", f"Permission denied reading\writing {CONFIGTXT} at function update_config in file day_night.py")
     except Exception as e:
         log_event("critical", f"update_config function error at day_night.py: {e}")
 
@@ -58,11 +80,11 @@ def write_log(brightness,current_mode):
         # If the day has changed, reset the log file (overwrite)
         if current_date != last_date:
             last_date = current_date  # Update the day counter to hold previous day date
-            with open(LOG_FILE, "w") as log:  # "w" clears the file
+            with open(BRIGHTNESS_LOG_FILE, "w") as log:  # "w" clears the file
                 log.write(f"=== Log for {current_date} ===\n")  # Add a header
 
         # Append new log entry
-        with open(LOG_FILE, "a") as log:
+        with open(BRIGHTNESS_LOG_FILE, "a") as log:
             timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
             log.write(f"{timestamp} - Brightness: {brightness} - Camera Mode: {current_mode}\n")
     except Exception as e:
@@ -79,7 +101,7 @@ def monitor_brightness():
             for _ in range(checks):
                 frame_local,ret = get_frame_safe()
                 if not ret:
-                    print("Failed to capture image")
+                    log_event("error", "monitor_brightness function error at day_night.py :Camera disconnected, retrying...")
                     write_log(None,None)
                     time.sleep(60)  # Waits 1 minute before retrying
                     continue
@@ -94,12 +116,12 @@ def monitor_brightness():
                 else:
                     high_brightness_count += 1
 
-                time.sleep(60)  # Waits 1 minute between checks
+                time.sleep(0.8)  # Waits 1 minute between checks
 
             # Only switchs if the brightness was consistently low/high for most checks
-            if low_brightness_count >= 7 and current_mode == "normal":
+            if low_brightness_count >= 9 and current_mode == "normal":
                 update_config("night")
-            elif high_brightness_count >= 7 and current_mode == "night":
+            elif high_brightness_count >= 9 and current_mode == "night":
                 update_config("normal")
         except Exception as e:
             log_event("critical", f"monitor_brightness function error at day_night.py: {e}")

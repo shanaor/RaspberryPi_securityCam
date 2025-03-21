@@ -19,7 +19,8 @@ import face_recognition
 """"""""" ADMIN TERRITORY """""""""
 """"""""""""""""""""""""""""""""""""
 def compute_encoding_hash(encoding):
-    """Generate a scalar value from a face encoding for fast database lookup."""
+    """Generate a scalar value from a face encoding for fast database lookup by creating first stage filter
+    to get canddiates for comparing ."""
     product = np.prod(encoding)
     return float(min(max(product, -1e308), 1e308))  # Multiply all elements together for fast lookup
 
@@ -37,6 +38,7 @@ def save_face_to_db(first_name, last_name, encoding):
             conn.commit()
     except sqlite3.Error as e:
         log_event("critical", f"save_face_to_db function error at register_face.py: {e}")
+        raise
 # ------------------------------------------------------------
 # ------------------------------------------------------------
 
@@ -78,10 +80,12 @@ async def register_face(user: FaceName):
                 "image": base64_image
             })
                 
-        if not face_encodings: #seems redundent because if no face then i can jsut log and raise error, but its for clarity
-        log_event("error", "User accessed register_face function at register_face.py, no face found", request) # type: ignore
-        raise HTTPException(400, "No face detected")    
-            
+        if not face_encodings: #seems redundent because if no face then i can just log and raise error, but its for clarity
+            log_event("error", "User accessed register_face function at register_face.py, no face found", request) # type: ignore
+        raise HTTPException(400, "No face detected")
+    except ValueError as e:
+        log_event("error", f"Face detection failed: {e}")
+        raise HTTPException(400, "Invalid image data")
     except sqlite3.Error as e:
         log_event("critical", f"Database error in register_face at register_face.py: {e}")
         raise HTTPException(500, "Database error")

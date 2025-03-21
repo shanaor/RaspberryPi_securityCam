@@ -3,7 +3,6 @@ from config.models import UserAuthorization
 from python_standalones.logger import log_event
 
 from fastapi import Request, HTTPException, APIRouter, Response
-from fastapi.responses import RedirectResponse
 
 from functools import wraps
 import jwt
@@ -64,23 +63,23 @@ def authenticate_user_or_admin(func):
                 token = request.cookies.get("auth_token")
                 if not token:
                     log_event("error", "Token authentication failed due to no token (authenticate_user_or_admin at login.py)", request)
-                    return RedirectResponse(url="/login.html")
+                    raise HTTPException(status_code=401, detail="Log in required")
                 try:
                     payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
                     # Ensure payload contains either an admin flag or a valid subject
                     if not payload.get("sub"):
                         log_event("error", "Unauthorized access, Not valid user (authenticate_user_or_admin function at login.py)",request)
-                        return RedirectResponse(url="/login.html")
+                        raise HTTPException(status_code=401, detail="Invalid user, please log in")
                     return await func(*args, request=request, is_authenticated=True, is_admin=payload.get("admin"), **kwargs)
                 except jwt.ExpiredSignatureError:
                     log_event("warning", "Token expired (authenticate_user_or_admin at login.py)", request)
-                    return RedirectResponse(url="/login.html")
+                    raise HTTPException(status_code=401, detail="Access time expired, please log in")
                 except jwt.InvalidTokenError:
                     log_event("warning", "Invalid token (authenticate_user_or_admin at login.py)", request)
-                    return RedirectResponse(url="/login.html")
+                    raise HTTPException(status_code=401, detail="Invalid access, please log in")
             except Exception as e:
                 log_event("critical", f"authenticate_user_or_admin function error at login.py error: {e}",request)
-                return RedirectResponse(url="/login.html")
+                raise HTTPException(status_code=401, detail="Error, please log in")
         return wrapper
 
 def authenticate_admin(func):
@@ -91,20 +90,20 @@ def authenticate_admin(func):
                 token = request.cookies.get("auth_token")
                 if not token:
                     log_event("error", "Token missing in authenticate_admin",request)
-                    return RedirectResponse(url="/login.html")
+                    raise HTTPException(status_code=401, detail="Log in required")
                 try:
                     payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
                     if not payload.get("admin"):
                         log_event("error", "Admin privileges was tried to be accessed (authenticate_admin function at login.py)",request)
-                        return RedirectResponse(url="/login.html")
+                        raise HTTPException(status_code=401, detail="unauthrized section access, please log in")
                     return await func(*args, request=request, is_admin=True, **kwargs)
                 except jwt.ExpiredSignatureError:
                     log_event("warning", "Token expired (authenticate_admin at login.py)",request)
-                    return RedirectResponse(url="/login.html")
+                    raise HTTPException(status_code=401, detail="expired permission access, please log in")
                 except jwt.InvalidTokenError:
                     log_event("warning", "Invalid token (authenticate_admin at login.py)",request)
-                    return RedirectResponse(url="/login.html")
+                    raise HTTPException(status_code=401, detail="invalid credentials, please log in")
             except Exception as e:
                 log_event("critical", f"authenticate_admin function error at login.py error: {e}",request)
-                return RedirectResponse(url="/login.html")
+                raise HTTPException(status_code=401, detail="unauthrized accesss, please log in")
         return wrapper

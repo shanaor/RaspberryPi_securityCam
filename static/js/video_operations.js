@@ -1,4 +1,5 @@
 import axios from 'https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js';
+axios.defaults.withCredentials = true;
 
 const listEl = document.getElementById('video-list');
 const refreshBtn = document.getElementById('refresh');
@@ -7,6 +8,7 @@ async function fetchVideos() {
   try {
     const { data: videos } = await axios.get('/videos_list/');
     listEl.innerHTML = '';
+    const fragment = document.createDocumentFragment();
     videos.forEach(video => {
       const li = document.createElement('li');
       li.textContent = video;
@@ -32,8 +34,9 @@ async function fetchVideos() {
       };
       
       li.append(downloadLink, deleteBtn);
-      listEl.appendChild(li);
+      fragment.appendChild(li);
     });
+    listEl.appendChild(fragment);
   } catch (err) {
     listEl.innerHTML = '<li>Error loading videos</li>';
   }

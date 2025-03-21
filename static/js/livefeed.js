@@ -3,12 +3,11 @@ const liveFeedImg = document.getElementById('live-feed');
 const refreshBtn = document.getElementById('refresh-feed');
 const statusMessage = document.getElementById('status-message');
 const spinner = document.querySelector('.spinner');
-const SERVER = 'https://192.168.1.195:8123';
 
 // Function to update the live feed
 function updateLiveFeed() {
     const timestamp = new Date().getTime();
-    liveFeedImg.src = `${SERVER}/video_feed?timestamp=${timestamp}`;
+    liveFeedImg.src = `/video_feed?timestamp=${timestamp}`;
     statusMessage.textContent = 'Loading live feed...';
     spinner.style.display = 'block';
 }

@@ -1,7 +1,7 @@
 from python_standalones.day_night import monitor_brightness
 from python_standalones.logger import log_event
 from python_standalones.automatic_camera_functions import camera,recognize_face,camera_feed_function
-from config.config import VIDEO_FOLDER
+from config.config import VIDEO_FOLDER, LOG_DIR
 
 from login import router_login_and_generate_token as login_and_generate_token
 from livefeeds import(router_livefeed as live_feed_router,
@@ -23,6 +23,7 @@ from DB.users_logs_DB import initialize_user_and_logs_database
 from DB.face_DB import initialize_face_db
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 import os
 import time
@@ -31,6 +32,7 @@ import uvicorn
 import threading
 
 app = FastAPI()
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 def cleanup(): #Ensure camera resources are released at exit
     """Release camera resources before exiting."""
@@ -115,7 +117,7 @@ if __name__ == "__main__":
         try:
             # Ensure necessary directories exist
             os.makedirs(f"{VIDEO_FOLDER}", exist_ok=True)
-            os.makedirs("logs", exist_ok=True)
+            os.makedirs(f"{LOG_DIR}", exist_ok=True)
             # Initialize databases
             initialize_user_and_logs_database()
             initialize_face_db()

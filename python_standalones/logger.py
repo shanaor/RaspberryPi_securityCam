@@ -1,3 +1,4 @@
+from config.config import LOG_DIR
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -6,11 +7,11 @@ import os
 from typing import Optional
 from fastapi import Request
 
-os.makedirs("logs", exist_ok=True)
+os.makedirs(f"{LOG_DIR}", exist_ok=True)
 
 # Configure the main logger
 log_formatter = logging.Formatter( "%(asctime)s - %(levelname)s - %(module)s - IP: %(message)s")
-log_file = "logs/server.log"
+log_file = f"{LOG_DIR}/server.log"
 log_handler = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=5)
 log_handler.setFormatter(log_formatter)
 log_handler.setLevel(logging.INFO)
@@ -22,7 +23,7 @@ logger.addHandler(log_handler)
 
 
 # Configure the error logger for logging failures
-error_log_file = "logs/logger_errors.log"
+error_log_file = f"{LOG_DIR}/logger_errors.log"
 error_handler = logging.FileHandler(error_log_file)
 error_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
 error_handler.setLevel(logging.ERROR)

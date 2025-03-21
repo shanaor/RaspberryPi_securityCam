@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Face Admin Dashboard</title>
-  <link rel="stylesheet" href="register_face.css">
+  <link rel="stylesheet" href="css/register_face.css">
   <link rel="stylesheet" href="css/navbar.css">
 </head>
 <body>
@@ -24,6 +24,7 @@
     <h2>Live Face Registration Feed</h2>
     <img id="live-feed" src="/register_video_feed" alt="Live Registration Feed">
     <br>
+    <p id="livefresh"></p>
     <button id="refresh-live-feed">Refresh Live Feed</button>
   </section>
 
@@ -31,13 +32,30 @@
   <section id="register-face-section">
     <h2>Register Face</h2>
     <form id="register-face-form">
-      <input type="text" id="first-name" placeholder="First Name" required>
-      <input type="text" id="last-name" placeholder="Last Name" required>
-      <button type="submit">Register Face</button>
+      <label for="first-name">First Name</label>
+      <input 
+        type="text" 
+        id="first-name" 
+        placeholder="First Name" 
+        required 
+        pattern="^[a-zA-Z ]{3,20}$" 
+        title="First name must be 3-20 characters long and contain only letters and spaces." 
+      > <span id="first-name-error" class="error"></span>
+      
+      <label for="last-name">Last Name</label>
+        <input 
+        type="text" 
+        id="last-name" 
+        placeholder="Last Name" 
+        required 
+        pattern="^[a-zA-Z ]{3,20}$" 
+        title="Last name must be 3-20 characters long and contain only letters and spaces."
+      > <span id="last-name-error" class="error"></span>
+      <button id="registerBtn" type="submit">Register Face</button>
     </form>
     <div id="face-result">
       <p id="register-message"></p>
-      <img id="face-image" src="" alt="Captured Face">
+      <img id="face-image" src="" alt="Captured Face" style="display: none;">
     </div>
   </section>
   
@@ -45,8 +63,15 @@
   <section id="delete-face-section">
     <h2>Delete Face</h2>
     <form id="delete-face-form">
-      <input type="text" id="delete-face-id" placeholder="Face ID" required>
-      <button type="submit">Delete Face</button>
+      <input 
+        type="number" 
+        id="delete-face-id" 
+        placeholder="Face ID" 
+        required 
+        min="1" 
+        title="Face ID must be a positive integer."
+      > <span id="face-id-error" class="error"></span>
+      <button id="deleteBtn" type="submit">Delete Face</button>
     </form>
     <p id="delete-message"></p>
   </section>
@@ -58,6 +83,6 @@
     <ul id="faces-list"></ul>
   </section>
   
-  <script type="module" src="register_face.js"></script>
+  <script type="module" src="js/register_face.js"></script>
 </body>
 </html>

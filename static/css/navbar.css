@@ -34,4 +34,12 @@
   .navbar li a.active {
     background-color: #12cf44;
   }
-  
+  @media (max-width: 600px) {
+    .navbar ul {
+      display: flex;
+      flex-direction: column;
+    }
+    .navbar li {
+      float: none;
+    }
+  }

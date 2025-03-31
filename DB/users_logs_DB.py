@@ -41,7 +41,7 @@ def initialize_user_and_logs_database():
                 hashed_password = hashlib.sha256(ADMIN_PASSWORD.encode()).hexdigest()
                 cursor.execute("INSERT INTO admin (username, password) VALUES (?, ?)", (ADMIN_USERNAME, hashed_password))
             conn.commit()
-        log_event("info","Database initialized successfully.")
+        log_event("info","Database initialized successfully (users_logs_DB.py).")
     except sqlite3.Error as e:
-        log_event("critical", f"user_and_logs database initialization error at users_logs_DB.py: {e}")
+        log_event("critical", f"user_and_logs database initialization error (users_logs_DB.py): {e}")
         raise

@@ -37,7 +37,7 @@ def save_face_to_db(first_name, last_name, encoding):
             ''', (first_name, last_name, encoding.tobytes(), encoding_hash))
             conn.commit()
     except sqlite3.Error as e:
-        log_event("critical", f"save_face_to_db function error at register_face.py: {e}")
+        log_event("critical", f"save_face_to_db function error (register_face.py): {e}")
         raise
 # ------------------------------------------------------------
 # ------------------------------------------------------------
@@ -48,9 +48,9 @@ router_register_face = APIRouter()
 async def register_face(user: FaceName):
     """Asynchronously detects a face and registers it, then returns the captured frame to the frontend."""
     try:
-        frame_local, ret_local= await asyncio.to_thread(get_frame_safe)
-        if not ret_local:
-            log_event("error", "User accessed register_face function at register_face.py, camera failed",request) # type: ignore
+        frame_local=await asyncio.to_thread(get_frame_safe)
+        if frame_local is None:
+            log_event("error", "User accessed register_face function (register_face.py), camera failed",request) # type: ignore
             raise HTTPException(400, "Camera not accessible, please refresh the page.")
 
         # Convert frame to RGB for face recognition
@@ -60,7 +60,7 @@ async def register_face(user: FaceName):
         face_encodings = await asyncio.to_thread(face_recognition.face_encodings,rgb_frame, face_locations)
         
         if face_encodings: 
-            log_event("info", "User accessed register_face function at register_face.py, face detected",request) # type: ignore
+            log_event("info", "User accessed register_face function (register_face.py), face detected",request) # type: ignore
             # Process the first face
             location, encoding = face_locations[0], face_encodings[0]
             top, right, bottom, left = location
@@ -71,7 +71,7 @@ async def register_face(user: FaceName):
             base64_image = base64.b64encode(buffer).decode("utf-8")
             # Save the face encoding in the database (async I/O task)
             await asyncio.to_thread(save_face_to_db, user.first_name, user.last_name, encoding)
-            log_event("info", f"User registered: {user.first_name} {user.last_name}",request) # type: ignore
+            log_event("info", f"User face registered, register_face function: {user.first_name} {user.last_name} (register_face.py)",request) # type: ignore
                 
             # Return success response with the image
             return JSONResponse(content={
@@ -81,16 +81,16 @@ async def register_face(user: FaceName):
             })
                 
         if not face_encodings: #seems redundent because if no face then i can just log and raise error, but its for clarity
-            log_event("error", "User accessed register_face function at register_face.py, no face found", request) # type: ignore
+            log_event("error", "User accessed register_face function (register_face.py), no face found", request) # type: ignore
         raise HTTPException(400, "No face detected")
     except ValueError as e:
-        log_event("error", f"Face detection failed: {e}")
+        log_event("error", f"Face detection failed: {e} (register_face.py)")
         raise HTTPException(400, "Invalid image data")
     except sqlite3.Error as e:
-        log_event("critical", f"Database error in register_face at register_face.py: {e}")
+        log_event("critical", f"Database error in register_face (register_face.py): {e}")
         raise HTTPException(500, "Database error")
     except Exception as e:
-        log_event("critical", f"Unexpected error in register_face at register_face.py: {e}")
+        log_event("critical", f"Unexpected error in register_face (register_face.py): {e}")
         raise HTTPException(500, "Internal server error")
         
 router_delete_face = APIRouter()
@@ -106,18 +106,18 @@ def delete_face(face_id:int = Path(..., title="Face ID", description="ID must be
             result = cursor.fetchone()
 
             if not result:
-                log_event("error", f"User accessed delete_face function at register_face.py, no face found with ID {face_id}", request) # type: ignore
+                log_event("error", f"User accessed delete_face function (register_face.py), no face found with ID {face_id}", request) # type: ignore
                 raise HTTPException(status_code=404, detail=f"No face found with ID {face_id}")
         # Delete the face record
             cursor.execute('DELETE FROM registered_faces WHERE id = ?', (face_id,))
             conn.commit()
-        log_event("warning", f"User accessed delete_face function at register_face.py, face with ID {face_id} deleted", request) # type: ignore
+        log_event("warning", f"User accessed delete_face function (register_face.py), face with ID {face_id} deleted", request) # type: ignore
         return {"status": "success", "message": f"Face with ID {face_id} deleted"}
     except sqlite3.Error as e:
-        log_event("critical", f"Database error in delete_face at register_face.py: {e}")
+        log_event("critical", f"Database error in delete_face (register_face.py): {e}")
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
-        log_event("critical", f"Unexpected error in delete_face at register_face.py: {e}")
+        log_event("critical", f"Unexpected error in delete_face (register_face.py): {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
         
 router_faces_list = APIRouter()
@@ -133,17 +133,17 @@ def get_registered_faces():
             faces = cursor.fetchall()
 
         if not faces:
-            log_event("info", "User accessed get_registered_faces function at register_face.py, no faces registered", request) # type: ignore
+            log_event("info", "User accessed get_registered_faces function (register_face.py), no faces registered", request) # type: ignore
             return {"status": "success", "message": "No faces registered", "faces": []}
         # Convert to list of dictionaries
         face_list = [
             {"id": face[0], "first_name": face[1], "last_name": face[2], "created_at": face[3]}
             for face in faces]
-        log_event("info", "User accessed get_registered_faces function at register_face.py", request) # type: ignore
+        log_event("info", "User accessed get_registered_faces function (register_face.py)", request) # type: ignore
         return {"status": "success", "faces": face_list}
     except sqlite3.Error as e:
-        log_event("critical", f"Database error in get_registered_faces at register_face.py: {e}")
+        log_event("critical", f"Database error in get_registered_faces (register_face.py): {e}")
         raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
-        log_event("critical", f"Unexpected error in get_registered_faces at register_face.py: {e}")
+        log_event("critical", f"Unexpected error in get_registered_faces (register_face.py): {e}")
         raise HTTPException(status_code=500, detail="Internal server error")

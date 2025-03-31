@@ -21,7 +21,7 @@ def initialize_face_db():
                 )
             ''')
             conn.commit()
-        log_event("info","Face database initialized successfully.")
+        log_event("info","Face database initialized successfully (face_DB.py).")
     except sqlite3.Error as e:
-        log_event("critical", f"Face database initialization error at face_DB.py: {e}") 
+        log_event("critical", f"Face database initialization error (face_DB.py): {e}") 
         raise

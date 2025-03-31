@@ -22,17 +22,17 @@ def register_user(user: UserAuthorization):
             # Check if username already exists
             cursor.execute("SELECT * FROM registered_users WHERE username = ?", (user.username,))
             if cursor.fetchone():
-                log_event("error", f"User accessed register_user function at users_and_logs_operations.py, {user.username} already exists",request) # type: ignore
+                log_event("error", f"User accessed register_user function (users_and_logs_operations.py), {user.username} already exists",request) # type: ignore
                 raise HTTPException(status_code=400, detail="User already exists")
             # Hash password before saving
             hashed_password = hashlib.sha256(user.password.encode()).hexdigest()
             # Insert new user
             cursor.execute("INSERT INTO registered_users (username, password) VALUES (?, ?)", (user.username, hashed_password))
             conn.commit()
-        log_event("info", f"User accessed register_user function at users_and_logs_operations.py, registered {user.username} ",request) # type: ignore
+        log_event("info", f"User accessed register_user function (users_and_logs_operations.py), registered {user.username} ",request) # type: ignore
         return {"message": f"User '{user.username}' registered successfully"}
     except Exception as e:
-        log_event("critical", f"register_user function error at users_and_logs_operations.py: {e}")
+        log_event("critical", f"register_user function error (users_and_logs_operations.py): {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 # --------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------
@@ -48,15 +48,15 @@ def delete_user(user_id: int = Path(..., title="User ID", description="ID must b
             cursor.execute("SELECT COUNT(*) FROM registered_users WHERE id = ?", (user_id,))
             user_count = cursor.fetchone()[0]
             if user_count == 0:
-                log_event("error", f"User accessed delete_user function at users_and_logs_operations.py, No users with id {user_id} found to delete",request) # type: ignore
+                log_event("error", f"User accessed delete_user function (users_and_logs_operations.py), No users with id {user_id} found to delete",request) # type: ignore
                 raise HTTPException(status_code=404, detail=f"User with ID '{user_id}' not found")
             # Delete the user
             cursor.execute("DELETE FROM registered_users WHERE id = ?", (user_id,))
             conn.commit()
-        log_event("warning", f"User accessed delete_user function at users_and_logs_operations.py and deleted {user_id}",request) # type: ignore
+        log_event("warning", f"User accessed delete_user function (users_and_logs_operations.py) and deleted {user_id}",request) # type: ignore
         return{"message": f"User with ID '{user_id}' deleted successfully."}
     except Exception as e:
-        log_event("critical", f"delete_user function error at users_and_logs_operations.py: {e}")
+        log_event("critical", f"delete_user function error (users_and_logs_operations.py): {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
         
 router_deactivate_user = APIRouter()
@@ -72,10 +72,10 @@ def deactivate_user(user_id: int = Path(..., title="User ID", description="ID mu
                 raise HTTPException(status_code=404, detail=f"User with ID '{user_id}' not found")
             cursor.execute("UPDATE registered_users SET is_active = 0 WHERE id = ?", (user_id,))
             conn.commit()
-        log_event("warning", f"User accessed deactivate_user function at users_and_logs_operations.py and deactivated {user_id} ",request) # type: ignore
+        log_event("warning", f"User accessed deactivate_user function (users_and_logs_operations.py) and deactivated {user_id} ",request) # type: ignore
         return {"message": f"User with ID '{user_id}' has been deactivated."}
     except Exception as e:
-        log_event("critical", f"deactivate_user function error at users_and_logs_operations.py: {e}")
+        log_event("critical", f"deactivate_user function error (users_and_logs_operations.py): {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
         
 router_activate_user = APIRouter()
@@ -91,10 +91,10 @@ def activate_user(user_id: int = Path(..., title="User ID", description="ID must
                 raise HTTPException(status_code=404, detail=f"User with ID '{user_id}' not found")
             cursor.execute("UPDATE registered_users SET is_active = 1 WHERE id = ?", (user_id,))
             conn.commit()
-        log_event("info", f"User accessed activate_user function and activated {user_id} at users_and_logs_operations.py",request) # type: ignore
+        log_event("info", f"User accessed activate_user function and activated {user_id} (users_and_logs_operations.py)",request) # type: ignore
         return {"message": f"User with ID '{user_id}' has been activated."}
     except Exception as e:
-        log_event("critical", f"activate_user function error at users_and_logs_operations.py: {e}")
+        log_event("critical", f"activate_user function error (users_and_logs_operations.py): {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
         
 router_user_list = APIRouter()
@@ -108,12 +108,12 @@ def get_user_list():
             cursor.execute("SELECT id, username, is_active FROM registered_users")
             users = cursor.fetchall()
         if not users:
-            log_event("error", "User accessed get_user_list function at users_and_logs_operations.py, No registered users found",request) # type: ignore
+            log_event("error", "User accessed get_user_list function (users_and_logs_operations.py), No registered users found",request) # type: ignore
             raise HTTPException(status_code=404, detail="No registered users found.")
-        log_event("info", "User accessed get_user_list function at users_and_logs_operations.py, listed registered users",request) # type: ignore
+        log_event("info", "User accessed get_user_list function (users_and_logs_operations.py), listed registered users",request) # type: ignore
         return users
     except Exception as e:
-        log_event("critical", f"get_user_list function error at users_and_logs_operations.py: {e}")
+        log_event("critical", f"get_user_list function error (users_and_logs_operations.py): {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 # --------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------
@@ -158,10 +158,10 @@ def get_event_logs(day=None, month=None, year=None):
             logs = cursor.fetchall()
         
         if not logs:
-            log_event("error", f"User accessed get_event_logs function at users_and_logs_operations.py, {day}/{month}/{year}, No logs found.",request) # type: ignore
+            log_event("error", f"User accessed get_event_logs function (users_and_logs_operations.py), {day}/{month}/{year}, No logs found.",request) # type: ignore
             raise HTTPException(status_code=404, detail=f"No logs found on {day}/{month}/{year}.")
-        log_event("warning", f"User accessed get_event_logs function at users_and_logs_operations.py, {day}/{month}/{year}, listed logs",request) # type: ignore
+        log_event("warning", f"User accessed get_event_logs function (users_and_logs_operations.py), {day}/{month}/{year}, listed logs",request) # type: ignore
         return logs
     except Exception as e:
-        log_event("critical", f"get_event_logs function error at users_and_logs_operations.py: {e}")
+        log_event("critical", f"get_event_logs function error (users_and_logs_operations.py): {e}")
         raise HTTPException(status_code=500, detail="Internal server error")

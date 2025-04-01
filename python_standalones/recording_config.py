@@ -140,14 +140,13 @@ def stop_recording():
     # global out, recording, video_path
     try:
         if Global_Rec_variable.recording and Global_Rec_variable.out is not None:
+            if Global_Rec_variable.out.isOpened():
+                Global_Rec_variable.out.release()
             log_event("info", f"Recording saved: {Global_Rec_variable.video_path}")
-            Global_Rec_variable.out.release()
         else:
             log_event("warning", "Stop_recording called but no active recording or writer (recording_config.py).")
     except Exception as e:
         log_event("critical", f"stop_recording function error (recording_config.py): {e}")
-    except cv2.error as e:
-        log_event("critical", f"OpenCV error in stop_recording function (recording_config.py): {e}")
     finally:
         Global_Rec_variable.recording = False
         Global_Rec_variable.out = None

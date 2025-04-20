@@ -1,4 +1,4 @@
-from recording_config import start_recording,stop_recording,check_disk_space,Global_Rec_variable
+from python_standalones.recording_config import start_recording,stop_recording,check_disk_space,Global_Rec_variable
 from config.config import SC_DB_PATH, USER_LOG_DB_PATH,FRAME_TIME_INTERVAL,SD_CARD_MEMORY_LIMIT,FRAME_LIMITER
 from python_standalones.logger import log_event
 
@@ -31,14 +31,16 @@ class Global_cam_var:
 picam2 = Picamera2()
 # ^^^ Picamera2 instance for capturing images. Initialized in camera_feed_function.
 
-def cleanup(): #Ensure camera resources are released at exit
+# ---------------------------------------------------------------------------------------------------------------------------------------------
+#  --------------------------------------------------------------------------------------------------------------------------------------------
+async def cleanup(): #Ensure camera resources are released at exit
     """Release camera resources before exiting."""
     global picam2
     try:
         if picam2.is_open:
             Global_cam_var.loop_flag = False
-            picam2.stop()
-            picam2.close()
+            await picam2.stop()
+            await picam2.close()
             log_event("info", "Camera resources released and thread loops stopped using cleanup function (automatic_camera_functions.py).")
     except Exception as e:
         log_event("critical", f"Error during cleanup function using atexit (automatic_camera_functions.py): {e}")
@@ -46,8 +48,14 @@ atexit.register(cleanup)  # Registering camera resources release, protecting cam
 
 def compute_encoding_hash(encoding):
     """Generate a scalar value from a face encoding for fast database lookup."""
-    product = np.prod(encoding)
-    return float(min(max(product, -1e308), 1e308))  # Multiply all elements together for fast lookup
+    try:
+        return float(min(max(np.prod(encoding), -1e308), 1e308))  # Multiply all elements together for fast lookup, and clamp to avoid overflow
+    except OverflowError:
+        log_event("critical", "Overflow error in compute_encoding_hash function (automatic_camera_functions.py)")
+        return None
+    except Exception as e:
+        log_event("critical", f"compute_encoding_hash function error (automatic_camera_functions.py): {e}")
+        return None
 
 def get_frame_safe(): #async executor
     "Returns a thread-safe copy of the current frame and its status for async functions to prevent crash."
@@ -56,10 +64,13 @@ def get_frame_safe(): #async executor
             return Global_cam_var.frame.copy() if Global_cam_var.frame is not None else None
     except cv2.error as e:
         log_event("critical", f"OpenCV error in get_frame_safe function (automatic_camera_functions.py): {e}")
-        raise
+        return None
     except Exception as e:
         log_event("critical", f"get_frame_safe function error (automatic_camera_functions.py): {e}")
         return None
+    finally:
+        if Global_cam_var.frame is None:
+            log_event("debug", "No frame available in get_frame_safe function (automatic_camera_functions.py).")
 
 def retrieve_candidates(encoding_hash: float, tolerance: float = 0.001) -> list:
     """Retrieve candidate face records from the database where the encoding_hash is within the specified tolerance for fast pre-filtering in face recognition."""
@@ -81,6 +92,7 @@ def log_event_db(event_type: str, description: str):
             cursor = conn.cursor()
             cursor.execute("INSERT INTO event_logs (event_type, description) VALUES (?, ?)", (event_type, description))
             conn.commit()
+        log_event("info", f"Event logged to database: {event_type} - {description} (log_event_db function at automatic_camera_functions.py)")
     except sqlite3.Error as e:
         log_event("critical", f"log_event_db function error (automatic_camera_functions.py): {e}")
 

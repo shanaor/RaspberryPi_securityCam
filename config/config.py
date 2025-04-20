@@ -33,3 +33,39 @@ FRAME_LIMITER = 2 # to control frame flow incase CPU cant handle 20fps on recogn
 #  ------------- RECORDINGS ---------------
 SD_CARD_MEMORY_LIMIT = 90 # Percentage %
 FREE_PERCENTAGE_TRAGET = 20 # Percentage %
+
+# ------------ HTTP_ERROR MESSAGES -------------------
+HTTP_ERROR_DETAILS = {
+    # --- 400 Bad Request ---
+    "BAD_REQUEST_NO_FACE": "No face detected. TRY AGAIN. please make sure to be properly in frame, use the green square as indicature.",
+    "BAD_REQUEST_CAMERA_FAIL": "Camera not accessible, REFRESH the page (or press CTRL-R) and try again.",
+    "BAD_REQUEST_INVALID_IMAGE": "Invalid image data. REFRESH the page (or press CTRL-R) and try again.",
+    "BAD_REQUEST_INVALID_INPUT": "Invalid input. Insert proper input as instructed. If its face capture try make face capture more accurate and try again.",
+    
+    # --- 401 Unauthorized ---
+    "INVALID_CREDENTIALS": "Invalid credentials. wrong username or password.",
+    "AUTH_REQUIRED": "Log in required. please log in. You will be redirected to the login page.",
+    "AUTH_EXPIRED": "Access Permission needed, please log in. You will be redirected to the login page.",
+    "AUTH_INVALID_TOKEN": "Invalid access, please log in. You will be redirected to the login page.",
+
+    # --- 403 Forbidden ---
+    "FORBIDDEN_ADMIN_ONLY": "Unauthorized access. Admin only action. You will be redirected to the Livefeed page.",
+
+    # --- 404 Not Found ---
+    "NOT_FOUND_USER_ID": "User with ID '{user_id}' not found",
+    "NOT_FOUND_FACE_ID": "No face found with ID {face_id}",
+    "NOT_FOUND_VIDEO_FILE": "Video not found (If expected to be existing try REFRESHING the page (or press CTRL-R)).",
+    "NOT_FOUND_NO_USERS": "No registered users.",
+    "NOT_FOUND_NO_VIDEOS_LIST": "No videos list found (if expected to be, REFRESH page (or press CTRL-R) and try again).",
+    "NOT_FOUND_NO_LOGS": "No logs found on {day}/{month}/{year}.",
+    "NOT_FOUND_FOLDER": "No recordings folder found.",
+
+    # --- 409  conflict with the current state of the resource ---
+    "USER_NAME_ALREADY_REGISTERED": "User already registered. Please use a different username.",
+    
+    # --- 500 Internal Server Error ---
+    "SERVER_ERROR_GENERAL_EXCEPTION": "Internal Server Error. Please REFRESH the page (or press CTRL-R) and try again. if persists contact support.",
+    "SERVER_ERROR_DATABASE": "Database error. REFRESH the page (or press CTRL-R) and try again.",
+    "SERVER_ERROR_VALIDATION": "Error in Validation, please refresh the page (or press CTRL-R) and try again.",
+    "SERVER_ERROR_TIMEOUT": "{error}, please refresh the page (or press CTRL-R) and try again. if persists contact support. or try in different time",
+}

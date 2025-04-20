@@ -33,7 +33,6 @@ error_logger = logging.getLogger("LoggerErrorHandler")
 error_logger.addHandler(error_handler)
 error_logger.setLevel(logging.ERROR)
 
-
 # Logging function with IP tracking
 def log_event( level: str, message: str,request: Optional[Request] = None):
     """

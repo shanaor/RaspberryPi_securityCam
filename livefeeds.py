@@ -1,10 +1,10 @@
 from python_standalones.automatic_camera_functions import get_frame_safe
 from python_standalones.logger import log_event
-from login import authenticate_admin, authenticate_user_or_admin
-from config.config import FRAME_TIME_INTERVAL
+from login import authenticate_user
+from config.config import FRAME_TIME_INTERVAL,HTTP_ERROR_DETAILS
 
 from fastapi.responses import StreamingResponse
-from fastapi import APIRouter
+from fastapi import Depends,APIRouter, HTTPException,Request
 
 import face_recognition
 import cv2
@@ -51,11 +51,11 @@ async def generate_frames():
             continue
 
 router_livefeed = APIRouter()
-@router_livefeed.get("/video_feed")
-@authenticate_user_or_admin
-async def video_feed():
+@router_livefeed.api_route("/video_feed", methods=["GET", "HEAD"])
+async def video_feed(request:Request,current_user: dict = Depends(authenticate_user)):
     """Livestream endpoint for the frontend (Users + Admin)."""
-    log_event("info", "User accessed video_feed function (livefeeds.py)", request) # type: ignore
+    is_admin, user_id = current_user.get("is_admin"), current_user.get("user_id")
+    log_event("info", f"User accessed video_feed function (livefeeds.py), Method: {request.method}, Admin status: {is_admin}, User:{user_id}", request)
     return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
 # ------------------------------------------------------------
 # ------------------------------------------------------------
@@ -109,8 +109,16 @@ async def generate_register_frames():
 # special router for face registration live feed
 router_register_livefeed = APIRouter()
 @router_register_livefeed.get("/register_video_feed")
-@authenticate_admin
-async def register_video_feed():
+async def register_video_feed(request:Request,current_user: dict = Depends(authenticate_user)):
     """Asynchronous livestream with face detection (for Admin during registration)."""
-    log_event("info", "User accessed register_video_feed function (livefeeds.py) to register a face", request) # type: ignore
+    is_admin, user_id = current_user.get("is_admin"), current_user.get("user_id")
+    log_event("info", f"User accessed register_video_feed function (livefeeds.py) Admin status: {is_admin}, User:{user_id}", request)
     return StreamingResponse(generate_register_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+    # if not is_admin:
+    #     log_event("error", f"Unauthorized access of non admin to register_video_feed function (livefeeds.py) by user {user_id}, admin status: {is_admin}", request)
+    #     raise HTTPException(status_code=403, detail=HTTP_ERROR_DETAILS["FORBIDDEN_ADMIN_ONLY"])
+ 
+   # -------- THIS IS INCASE THE HEAD METHOD IS NEEDED (incase the app.api_route wont work) --------
+   # @router_livefeed.head("/video_feed") 
+   # @router_livefeed.get("/video_feed") 

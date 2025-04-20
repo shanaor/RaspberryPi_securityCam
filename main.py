@@ -1,38 +1,67 @@
+
 from python_standalones.day_night import monitor_brightness
 from python_standalones.logger import log_event
 from python_standalones.automatic_camera_functions import recognize_face,camera_feed_function
 from config.config import VIDEO_FOLDER, LOG_DIR, SC_DB_PATH,USER_LOG_DB_PATH
 
-from login import router_login_and_generate_token as login_and_generate_token
-from livefeeds import(router_livefeed as live_feed_router,
-                        router_register_livefeed as register_livefeed_router)
-from users_and_logs_operations import ( router_register_user as register_user_router,
-                                        router_delete_user as delete_user_router,
-                                        router_deactivate_user as deactivate_user_router,
-                                        router_activate_user as activate_user_router,
-                                        router_user_list as user_list_router,
-                                        router_get_event_logs as get_event_logs_router)
-from video_operations import (  router_videos_list as video_list_router
-                                ,router_video_download as video_download_router
-                                ,router_delete_video as video_delete_router)
-from register_face import (router_register_face as register_face_router,
-                            router_delete_face as delete_face_router,
-                            router_faces_list as faces_list_router)
+from login import router_login_and_generate_token
+from livefeeds import router_livefeed, router_register_livefeed
+from users_and_logs_operations import ( router_register_user, router_delete_user,
+                                        router_deactivate_user, router_activate_user,
+                                        router_user_list, router_get_event_logs)
+from video_operations import  router_videos_list ,router_video_download ,router_delete_video
+from register_face import router_register_face, router_delete_face, router_faces_list
 
 from DB.users_logs_DB import initialize_user_and_logs_database
 from DB.face_DB import initialize_face_db
 
-from fastapi import FastAPI
+from fastapi import FastAPI,Request
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exception_handlers import http_exception_handler
 import uvicorn
 
 import os
 import time
 import threading
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
+log_event("info", "Script starting (main.py)")
 app = FastAPI()
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
+
+origins = [ "http://localhost:8123", "http://127.0.0.1:8123", "http://192.168.1.195:8123" ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"], )
+
+# -----------------------STARTUP----------------------------------------
+@app.on_event("startup")
+async def startup_event():
+    startup_retry = 0
+    while startup_retry < 5:
+        try:
+            # Ensure necessary directories exist
+            os.makedirs(f"{VIDEO_FOLDER}", exist_ok=True)
+            os.makedirs(f"{LOG_DIR}", exist_ok=True)
+            # Initialize databases
+            if not os.path.exists(SC_DB_PATH) or not os.path.exists(USER_LOG_DB_PATH):
+                await initialize_user_and_logs_database()
+                await initialize_face_db()
+                log_event("info", "Databases initialized if not exists (main.py)")
+            break # Exit loop if setup successful
+        except Exception as e:
+            startup_retry += 1
+            log_event("critical", f"Failure at (main.py) startup logic (Attempt {startup_retry}/5): {e}")
+            time.sleep(5)  # Prevent spamming retries
+    if startup_retry == 5:
+        log_event("critical", "Startup at (main.py) failed after 5 attempts. Exiting program.")
+        exit(1)  # Stop execution if startup fails
+        
 retry_camera = 0
 retry_recognition = 0
 retry_brightness = 0 
@@ -66,8 +95,8 @@ while retry_recognition < 5:
 if retry_recognition == 5:
     log_event("critical", "Face recognition Thread (main.py) start failed after 5 attempts. Exiting program.")
     exit(1)  # Exit program and Prevents running without face recognition
-
-# start nightvision check thread
+time.sleep(1)
+# start nightvision check thread after 1 second delay (to prevent unecessry failure)
 while retry_brightness < 5:
     try:
         brightness_thread = threading.Thread(target=monitor_brightness, daemon=True)
@@ -80,49 +109,46 @@ while retry_brightness < 5:
         time.sleep(5)
 if retry_brightness == 5:
     log_event("critical", "Monitor_brightness thread (main.py) start failed after 5 attempts. Continuing program, PLEASE FIX.")
-    
+  
+log_event("info", "starting routers after threads (main.py)")
+app.include_router(router_login_and_generate_token)
+# ---
+app.include_router(router_livefeed)
+# ---
+app.include_router(router_videos_list)
+app.include_router(router_video_download)
+app.include_router(router_delete_video)
+# ---
+app.include_router(router_register_livefeed)
+app.include_router(router_register_user)
+app.include_router(router_delete_user)
+app.include_router(router_deactivate_user)
+app.include_router(router_activate_user)
+app.include_router(router_user_list)
+# ---
+app.include_router(router_get_event_logs)
+# ---
+app.include_router(router_register_face)
+app.include_router(router_delete_face)
+app.include_router(router_faces_list)
 
-app.include_router(login_and_generate_token)
-# ---
-app.include_router(live_feed_router)
-# ---
-app.include_router(video_list_router)
-app.include_router(video_download_router)
-app.include_router(video_delete_router)
-# ---
-app.include_router(register_livefeed_router)
-app.include_router(register_user_router)
-app.include_router(delete_user_router)
-app.include_router(deactivate_user_router)
-app.include_router(activate_user_router)
-app.include_router(user_list_router)
-# ---
-app.include_router(get_event_logs_router)
-# ---
-app.include_router(register_face_router)
-app.include_router(delete_face_router)
-app.include_router(faces_list_router)
+# Global exception handler for Method errors
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 405:
+        log_event("error", "Method not allowed for endpoint: Unauthorized method access", request)
+    return await http_exception_handler(request, exc)
+
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
-    startup_retry = 0
-    while startup_retry < 5:
-        try:
-            # Ensure necessary directories exist
-            os.makedirs(f"{VIDEO_FOLDER}", exist_ok=True)
-            os.makedirs(f"{LOG_DIR}", exist_ok=True)
-            # Initialize databases
-            if not os.path.exists(SC_DB_PATH) or not os.path.exists(USER_LOG_DB_PATH):
-                initialize_user_and_logs_database()
-                initialize_face_db()
-                log_event("info", "Databases initialized if not exists (main.py)")
+    log_event("info", "main block started if python main called directly [not through CLI uvicorn] (main.py - if __main__)")
             # Start server
-            uvicorn.run(app, host="0.0.0.0", port=8123)
-            break # Exit loop if setup successful
-        except Exception as e:
-            startup_retry += 1
-            log_event("critical", f"Failure at (main.py) startup logic (Attempt {startup_retry}/5): {e}")
-            time.sleep(5)  # Prevent spamming retries
-
-    if startup_retry == 5:
-        log_event("critical", "Startup at (main.py) failed after 5 attempts. Exiting program.")
-        exit(1)  # Stop execution if startup fails
+    uvicorn.run(app, host="0.0.0.0", port=8123, ssl_keyfile="certs/key.pem", ssl_certfile="certs/cert.pem")
+    
+# -------- FOR ROUTE DEBUGGING ----------------
+# for route in app.routes:
+#     methods = getattr(route, "methods", None)
+#     path = getattr(route, "path", None)
+#     name = getattr(route, "name", None)
+#     log_event("info",f"Path: {path}, Methods: {methods}, Name: {name}")

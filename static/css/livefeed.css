@@ -61,6 +61,9 @@
     display: none; /* Hidden by default */
   }
   @keyframes spin {
+    from {
+      transform: translate(-50%, -50%) rotate(0deg); /* Keep translate if needed for origin */
+  }
     to {
       transform: translate(-50%, -50%) rotate(360deg); /* Rotate full circle */
     }

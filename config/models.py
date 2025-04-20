@@ -2,6 +2,7 @@ import re
 from pydantic.types import StringConstraints
 from pydantic import BaseModel, field_validator
 from typing_extensions import Annotated
+from typing import Optional, List
 
 class UserAuthorization(BaseModel):
     username: Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9_ ]+$", min_length=3, max_length=20)]
@@ -22,5 +23,5 @@ class UserAuthorization(BaseModel):
 class FaceName(BaseModel):
     first_name: Annotated[str, StringConstraints(pattern=r"^[a-zA-Z ]+$", min_length=3, max_length=20)]
     last_name: Annotated[str, StringConstraints(pattern=r"^[a-zA-Z ]+$", min_length=3, max_length=20)]
-    
+    encoding: Optional[List[float]] = None
     

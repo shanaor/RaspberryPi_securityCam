@@ -40,12 +40,6 @@ def cleanup_recordings(target_free_percent=FREE_PERCENTAGE_TRAGET):
     """Deletes the oldest video files in the recordings folder until the target free space is reached."""
     # global cleanup_flag
     try:
-        if not os.path.exists(VIDEO_FOLDER):
-            log_event("info", f"Recordings directory '{VIDEO_FOLDER}' does not exist. (recording_config.py)")
-            os.makedirs(f"{VIDEO_FOLDER}", exist_ok=True)
-            if not os.path.exists(VIDEO_FOLDER):
-                raise
-
         video_files = [f for f in os.listdir(VIDEO_FOLDER) if f.endswith(".mp4")]
         if not video_files:
             log_event("info", "No video files found in the recordings directory. (recording_config.py)")
@@ -80,24 +74,30 @@ def cleanup_recordings(target_free_percent=FREE_PERCENTAGE_TRAGET):
             except OSError as e:
                 log_event("error", f"Failed to delete {filename} (recording_config.py): {e}")
                 continue
-            except Exception as e:
-                log_event("error", f"Error deleting file '{filename}' (recording_config.py): {e}")
-                continue
             except FileNotFoundError as ffe:
                 log_event("critical", f"Error cleaning up recordings (recording_config.py): {ffe}")
                 continue
             except PermissionError as pe:
                 log_event("critical", f"Permission Error cleaning up recordings (recording_config.py): {pe}")
                 raise
+            except Exception as e:
+                log_event("error", f"Error deleting file '{filename}' (recording_config.py): {e}")
+                continue
+        # Final check to see if we reached the target free space
         if free < target_free_space:
             log_event("warning", f"Could not reach target free space ({target_free_percent}%) after deleting {deleted_count} files. Consider increasing storage or reducing recording frequency/quality. (recording_config.py)")
     except FileNotFoundError as ffe:
         log_event("critical", f"Error cleaning up recordings (recording_config.py): {ffe}")
+        raise
+    except OSError as e:
+        log_event("critical", f"Error cleaning up recordings (recording_config.py): {e}")
+        raise
     except PermissionError as pe:
         log_event("critical", f"Error cleaning up recordings (recording_config.py): {pe}")
         raise
     except Exception as e:
         log_event("critical", f"Error cleaning up recordings (recording_config.py): {e}")
+        raise
     finally:
         Global_Rec_variable.cleanup_flag = False
         
@@ -117,10 +117,17 @@ def start_recording(video_name: str, frame_width: int, frame_height: int, fps: f
         if not Global_Rec_variable.recording:
             # Validate frame dimensions
             if frame_width <= 0 or frame_height <= 0:
-                raise ValueError("Frame dimensions must be positive integers.")
+                raise ValueError("Frame dimensions must be positive integers in start_recording function (recording_config.py).")
             
             # Ensure the recordings directory exists
-            os.makedirs(f"{VIDEO_FOLDER}", exist_ok=True)
+            try:
+                if not os.path.exists(VIDEO_FOLDER):
+                    log_event("info", f"Recordings directory '{VIDEO_FOLDER}' does not exist, too late creation. defencive code. (recording_config.py)")
+                    os.makedirs(f"{VIDEO_FOLDER}", exist_ok=True)
+            except OSError as e:
+                if not os.path.exists(VIDEO_FOLDER):
+                    log_event("critical", f"Failed to create recordings directory '{VIDEO_FOLDER}'. if it reached here, its failure of 3rd defensive creation code. (recording_config.py): {e}")
+                    raise
             
             # Set up the video file path and writer
             Global_Rec_variable.video_path = f"{VIDEO_FOLDER}/{video_name}.mp4"
@@ -147,6 +154,7 @@ def stop_recording():
             log_event("warning", "Stop_recording called but no active recording or writer (recording_config.py).")
     except Exception as e:
         log_event("critical", f"stop_recording function error (recording_config.py): {e}")
+        raise
     finally:
         Global_Rec_variable.recording = False
         Global_Rec_variable.out = None

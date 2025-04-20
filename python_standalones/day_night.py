@@ -8,14 +8,16 @@ import os
 import time
 import shutil
 import datetime
-import atexit
 
 # Threshold for night vision activation
 BRIGHTNESS_THRESHOLD = 50  # Adjust based on testing
 last_date = time.strftime('%Y-%m-%d')  # Store the current date
 
-os.makedirs(CONFIG_BACKUP_DIR, exist_ok=True)
-
+try:
+    os.makedirs(CONFIG_BACKUP_DIR, exist_ok=True)
+except Exception:
+    os.makedirs(CONFIG_BACKUP_DIR, exist_ok=True)
+    
 def get_brightness(frame):
     """Calculate the average brightness of a frame."""
     if frame is None or frame.size == 0:
@@ -31,11 +33,11 @@ def get_current_mode():
                 if "disable_camera_led=1" in line:
                     return "night"
         return "normal"
-    except FileNotFoundError:
-        log_event("critical", f"Config file not found: {CONFIGTXT} at get_current_mode (day_night.py)")
+    except FileNotFoundError as e:
+        log_event("critical", f"Config file not found: {CONFIGTXT} at get_current_mode (day_night.py): {e}")
         return None
-    except PermissionError:
-        log_event("critical", f"Permission denied reading {CONFIGTXT} at get_current_mode (day_night.py)")
+    except PermissionError as e:
+        log_event("critical", f"Permission denied reading {CONFIGTXT} at get_current_mode (day_night.py): {e}")
         return None
     except Exception as e:
         log_event("critical", f"Unexpected error at get_current_mode function (day_night.py): {e}")
@@ -66,10 +68,10 @@ def update_config(new_mode):
         # Reboot after scheduled interval
         log_event("warning", f"Function update_config in day_night.py activated. Switching to {new_mode} mode (day_night.py). Restarting system in 2 minutes...")
         os.system("sudo shutdown -r +2")  # Reboots in 2 minutes and sends SIGTERM to the systems
-    except FileNotFoundError:
-        log_event("critical", f"Config file not found: {CONFIGTXT} at function update_config (day_night.py)")
-    except PermissionError:
-        log_event("critical", f"Permission denied reading\writing {CONFIGTXT} at function update_config (day_night.py)")
+    except FileNotFoundError as e:
+        log_event("critical", f"Config file not found: {CONFIGTXT} at function update_config (day_night.py): {e}")
+    except PermissionError as e:
+        log_event("critical", f"Permission denied reading\writing {CONFIGTXT} at function update_config (day_night.py): {e}")
     except Exception as e:
         log_event("critical", f"update_config function error (day_night.py): {e}")
 
@@ -92,19 +94,25 @@ def write_log(brightness,current_mode):
             log_event("critical", f"write_log function error (day_night.py): {e}")
 
 def monitor_brightness():
-    """Continuously monitor brightness and switch modes when needed."""
+    """Continuously monitor brightness and switch modes when needed.
+    designed to have 10 sconds ( 10 checks * time.sleep() ) sessions in order to get accurate change of enviroment situation 
+    Change the time.sleep as need. the lower the sleep time the faster it would react to changing environment but the more CPU it would use.
+    
+    the 9 checks are to avoid false positives of unitentional enviroment light change.
+    if the brightness is low for 9 checks it will switch to night mode, if its high for 9 checks it will switch to normal(day) mode."""
+    
     while Global_cam_var.loop_flag:
         try:
             low_brightness_count = 0
             high_brightness_count = 0
-            checks = 10  # Checks 10 times within the interval (once per minute)
+            checks = 10  # Checks 10 times within the interval
 
             for _ in range(checks):
                 frame_local = get_frame_safe()
                 if frame_local is None:
                     log_event("error", "monitor_brightness function error (day_night.py) :Camera disconnected, retrying...")
                     write_log(None,None)
-                    time.sleep(60)  # Waits 1 minute before retrying
+                    time.sleep(1)  # Waits 1 seconds before retrying to have 10 seconds brightness check sessions
                     continue
 
                 brightness = get_brightness(frame_local)
@@ -117,7 +125,7 @@ def monitor_brightness():
                 else:
                     high_brightness_count += 1
 
-                time.sleep(0.8)  # Waits 1 minute between checks
+                time.sleep(1)  # Waits 1 seconds before retrying to have 10 seconds brightness check sessions
 
             # Only switchs if the brightness was consistently low/high for most checks
             if low_brightness_count >= 9 and current_mode == "normal":

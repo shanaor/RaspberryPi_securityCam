@@ -8,21 +8,26 @@
     <link rel="stylesheet" href="css/navbar.css">
   </head>
 <body>
-  <div class="navbar">
+  <nav class="navbar">
   <ul>
     <li><a  href="Livefeed.html">Livefeed</a></li>
     <li><a href="Register_face.html">Register face</a></li>
     <li><a class="active" href="Video_operations.html">Video operations</a></li>
     <li><a href="Users_and_logs_operations.html">Users and logs</a></li>
   </ul>
-</div>
+</nav>
 <br><br>
-    <h1>Videos operations</h1>
+<main>
+  <h1>Videos operations</h1>
   <button id="refresh">Refresh List</button>
-  <h3><u>Video menu</u></h3>
-  <p id="notifier"></p>
-  <br>
-  <ul id="video-list"></ul>
+  <section>
+    <h3><u>Video menu</u></h3>
+    <p id="notifier"></p>
+    <br>
+    <ul id="video-list"></ul>
+  </section>
+</main>
+
   <script type="module" src="js/video_operations.js"></script>
 </body>
 </html>

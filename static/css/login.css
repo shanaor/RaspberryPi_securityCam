@@ -48,12 +48,7 @@ body {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
-}
-
-#login-form input:focus {
-  border-color: #007BFF;
-  outline: none;
-}
+} #login-form input:focus, #login-form button:focus {outline: 3px solid #0056b3; outline-offset: 2px;}
 
 /* Button styling */
 #login-form button {
@@ -68,36 +63,20 @@ body {
   transition: background 0.3s ease;
 }
 
-#login-form button:hover {
-  background: #0056b3;
-}
-
-#login-form button:focus {
-  outline: 2px solid #0056b3;
-}
-
-#login-form button:active {
-  background: #004080;
-}
+#login-form button:hover {background: #0056b3;}
+#login-form button:focus {outline: 2px solid #0056b3;}
+#login-form button:active {background: #004080;}
 
 /* Loading state for the button */
 #login-form button.loading {
   background: #007BFF; /* Matches base button color */
   cursor: not-allowed;
-}
-
-#login-form button.loading::after {
-  content: " Logging in...";
-  font-size: 1rem;
-}
+} #login-form button.loading::after {content: " Logging in...";font-size: 1rem;}
 
 /* Responsive adjustments */
 @media (max-width: 400px) {
-  #login-form {
-    padding: 1.5rem;
-  }
+  #login-form {padding: 1.5rem;}
+  
   #login-form input, 
-  #login-form button {
-    font-size: 0.9rem;
-  }
+  #login-form button {font-size: 0.9rem;}
 }

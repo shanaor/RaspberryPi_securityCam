@@ -16,9 +16,7 @@
     background-color: #333;
   }
   
-  .navbar li {
-    float: left;
-  }
+  .navbar li {float: left;}
   
   .navbar li a {
     display: block;
@@ -26,20 +24,10 @@
     text-align: center;
     padding: 14px 16px;
     text-decoration: none;
-  }
-  
-  .navbar li a:hover {
-    background-color: #111;
-  }
-  .navbar li a.active {
-    background-color: #12cf44;
-  }
+  }.navbar li a:hover {background-color: #111;}
+   .navbar li a.active {background-color: #12cf44;}
+
   @media (max-width: 600px) {
-    .navbar ul {
-      display: flex;
-      flex-direction: column;
-    }
-    .navbar li {
-      float: none;
-    }
+    .navbar ul {display: flex; flex-direction: column;}
+    .navbar li {float: none;}
   }

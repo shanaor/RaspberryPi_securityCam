@@ -38,8 +38,8 @@ FREE_PERCENTAGE_TRAGET = 20 # Percentage %
 HTTP_ERROR_DETAILS = {
     # --- 400 Bad Request ---
     "BAD_REQUEST_NO_FACE": "No face detected. TRY AGAIN. please make sure to be properly in frame, use the green square as indicature.",
-    "BAD_REQUEST_CAMERA_FAIL": "Camera not accessible, REFRESH the page (or press CTRL-R) and try again.",
-    "BAD_REQUEST_INVALID_IMAGE": "Invalid image data. REFRESH the page (or press CTRL-R) and try again.",
+    "BAD_REQUEST_CAMERA_FAIL": "Camera not accessible, REFRESH the page and try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)",
+    "BAD_REQUEST_INVALID_IMAGE": "Invalid image data. REFRESH the page and try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)",
     "BAD_REQUEST_INVALID_INPUT": "Invalid input. Insert proper input as instructed. If its face capture try make face capture more accurate and try again.",
     
     # --- 401 Unauthorized ---
@@ -54,9 +54,9 @@ HTTP_ERROR_DETAILS = {
     # --- 404 Not Found ---
     "NOT_FOUND_USER_ID": "User with ID '{user_id}' not found",
     "NOT_FOUND_FACE_ID": "No face found with ID {face_id}",
-    "NOT_FOUND_VIDEO_FILE": "Video not found (If expected to be existing try REFRESHING the page (or press CTRL-R)).",
+    "NOT_FOUND_VIDEO_FILE": "Video not found, If expected to be existing try REFRESHING the page. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)",
     "NOT_FOUND_NO_USERS": "No registered users.",
-    "NOT_FOUND_NO_VIDEOS_LIST": "No videos list found (if expected to be, REFRESH page (or press CTRL-R) and try again).",
+    "NOT_FOUND_NO_VIDEOS_LIST": "No videos list found, if expected to be, REFRESH page and try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)",
     "NOT_FOUND_NO_LOGS": "No logs found on {day}/{month}/{year}.",
     "NOT_FOUND_FOLDER": "No recordings folder found.",
 
@@ -64,8 +64,8 @@ HTTP_ERROR_DETAILS = {
     "USER_NAME_ALREADY_REGISTERED": "User already registered. Please use a different username.",
     
     # --- 500 Internal Server Error ---
-    "SERVER_ERROR_GENERAL_EXCEPTION": "Internal Server Error. Please REFRESH the page (or press CTRL-R) and try again. if persists contact support.",
-    "SERVER_ERROR_DATABASE": "Database error. REFRESH the page (or press CTRL-R) and try again.",
-    "SERVER_ERROR_VALIDATION": "Error in Validation, please refresh the page (or press CTRL-R) and try again.",
-    "SERVER_ERROR_TIMEOUT": "{error}, please refresh the page (or press CTRL-R) and try again. if persists contact support. or try in different time",
+    "SERVER_ERROR_GENERAL_EXCEPTION": "Internal Server Error. Please REFRESH the page and try again. if persists contact support. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)",
+    "SERVER_ERROR_DATABASE": "Database error. REFRESH the page and try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)",
+    "SERVER_ERROR_VALIDATION": "Error in Validation, please refresh the page and try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)",
+    "SERVER_ERROR_TIMEOUT": "{error}, please refresh the page and try again if persists contact support. or try in different time. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work).",
 }

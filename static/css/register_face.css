@@ -44,13 +44,97 @@ section h2 {
   display: block;
   margin: 0 auto 15px;
 }
+#refresh-livefeed-btn {
+  background-color: #f5f11c; /* Blue for refresh */
+  padding: 10px 20px; /* Standard button padding */
+  color: #000;
+} #refresh-livefeed-btn:hover { background-color: #d1c819; } /* Darker blue on hover */
+
+#appear-feed-btn {background-color: #1811eb; display: none; } /* Hidden until needed */
+#disappear-feed-btn {
+  background-color: #dc3545; /* Red for stop/disappear */
+  display: inline-block; 
+} #disappear-feed-btn:hover { background-color: #a22025;} /* Darker red on hover */
+
+/* ------ */
+/* --- Styles for Capture Face Section --- */
+#capture-section {
+  background: #fff; /* Matches section styling */
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 30px; /* Space below this section */
+  display: flex; /* Uses flexbox for layout */
+  flex-direction: column; /* Stack elements vertically */
+  gap: 15px; /* Space between direct children */
+  max-width: 640px; /* Align max-width with preview/feed */
+  margin-left: auto; /* Center the section block */
+  margin-right: auto;
+}
+
+/* Styling labels within the capture section */
+#capture-section label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #555;
+}
+
+/* Styling number inputs specifically */
+#capture-section input[type="number"] {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  margin-bottom: 10px; /* Space below input */
+  width: 100%; /* Make inputs take full width of container */
+}
+#start-capture-btn { padding: 12px 25px;} /* Makes main action button slightly larger */
+#cancel-capture-btn { display: none;} /* Hidden until needed */
+
+/* Status message area */
+#capture-status-message {
+  margin-top: 10px;
+  min-height: 1.2em; /* Reserve space even when empty */
+  font-weight: bold;
+  color: #0056b3; /* Use a theme color */
+  text-align: center;
+}
+
+/* Preview Area Styling */
+.preview-wrapper {
+  position: relative; /* CRUCIAL: Establishes positioning context for spinner */
+  width: 100%;
+  max-width: 480px; /* Adjust max preview size as needed */
+  min-height: 200px; /* Giving it some height so spinner is visible */
+  margin: 15px auto; /* Centering the wrapper horizontally */
+  background-color: #eee; /* Light background while loading/empty */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  display: flex; /* Uses flex to help center content if needed */
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+#face-preview-img {
+  display: block; /* Is block by default, but ensures it */
+  width: 100%;   /* Fills the wrapper width */
+  height: auto;  /* Maintains aspect ratio */
+  border-radius: 4px; /* Matches wrapper radius */
+  display: none;
+}
 
 /* Form Styling */
 form {
-  display: flex;
-  flex-direction: column;
+  display: flex; 
+  flex-direction: column; 
   gap: 10px;
-}
+  background: #fafafa;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+} #register-details-form{display: none;} /* Hide by default until needed */
 
 form input[type="text"],
 form input[type="password"] {
@@ -69,22 +153,27 @@ form button {
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.3s ease;
-}
+}form button:hover {background: #0056b3;}
 
-form button:hover {
-  background: #0056b3;
-}
-
-/* Face Result Image Styling */
-#face-result img {
-  display: block;
-  max-width: 300px;
-  margin: 15px auto 0;
+/* Delete face */
+#delete-face-section input[type="number"] {
+  padding: 10px;
   border: 1px solid #ccc;
   border-radius: 4px;
+  font-size: 1rem;
 }
 
-/* General Button Styling for non-form buttons */
+/* Registered Faces List */
+#faces-list { list-style: none; padding: 0; }
+#faces-list li { padding: 10px; border-bottom: 1px solid #eee; }
+#faces-list li:nth-child(odd) {background: #f9f9f9;}
+
+
+label {display: block; margin-bottom: 5px; font-weight: bold;} /* Label styling */
+.error {color: red; font-size: 0.9rem; margin-top: 5px; display: block;} /* Error message styling */
+input:focus, button:focus {outline: 2px solid #007BFF;}
+
+/* General Button Styling for non IDed buttons */
 button {
   padding: 10px 20px;
   border: none;
@@ -94,84 +183,43 @@ button {
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.3s ease;
-}
+} button:hover { background: #218838;} 
+  button:disabled {background-color: #ccc; cursor: not-allowed; opacity: 0.7;}
+button.secondary { background: #6c757d;}
+button.secondary:hover { background: #5a6268;}
 
-button:hover {
-  background: #218838;
-}
+.redbtn {
+  background-color: #dc3545; /* Red for delete */
+  padding: 10px 20px; /* Standard button padding */
+} .redbtn:hover { background-color: #c82333;} /* Darker red on hover */
 
-/* Registered Faces List */
-#faces-list {
-  list-style: none;
-  padding: 0;
-}
-
-#faces-list li {
-  padding: 10px;
-  border-bottom: 1px solid #eee;
-}
-
-label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.error {
-  color: red;
-  font-size: 0.9rem;
-  margin-top: 5px;
-  display: block;
-}
-
-input:focus, button:focus {
-  outline: 2px solid #007BFF;
-}
-
-#faces-list li:nth-child(odd) {
-  background: #f9f9f9;
-}
-
-button.secondary {
-  background: #6c757d;
-}
-button.secondary:hover {
-  background: #5a6268;
-}
-
+/* --- Spinner CSS --- */
 .spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1); /* Light gray border */
-  border-left-color: #007BFF; /* Blue accent for spinning effect */
-  border-radius: 50%; /* Circular shape */
+  background: rgba(180, 180, 180, 0.7); /* Semi-transparent */
+  padding: 20px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #007BFF;
+  border-radius: 50%;
   width: 40px;
   height: 40px;
-  animation: spin 1s linear infinite; /* Continuous spinning animation */
-  position: absolute;
+  animation: spin 1s linear infinite;
+  position: absolute; /* Positioned relative to .preview-wrapper */
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%); /* Center the spinner */
-  z-index: 1; /* Ensure it appears above the video feed */
+  transform: translate(-50%, -50%); /* Center it */
+  z-index: 10; /* Ensure it's above the image placeholder */
   display: none; /* Hidden by default */
 }
-@keyframes spin {
-  from {transform: translate(-50%, -50%) rotate(0deg);}
-  to {transform: translate(-50%, -50%) rotate(360deg);} /* Rotate full circle */
-}
+@keyframes spin { to {transform: rotate(360deg); }} /* Simpler keyframe */
 
 /* Responsive Adjustments */
 @media (max-width: 600px) {
-  section {
-    margin: 15px;
-    padding: 15px;
-  }
+  section { margin: 15px; padding: 15px;}
   
   form input,
   form button,
-  button {
-    font-size: 0.9rem;
-  }
+  button {font-size: 0.9rem;}
+  .container {margin: 15px; padding: 15px;}
   
-  #face-result img {
-    max-width: 100%;
-  }
+  #preview-wrapper img {max-width: 100%;}
 }

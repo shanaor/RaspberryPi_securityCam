@@ -8,63 +8,56 @@
   <link rel="stylesheet" href="css/navbar.css">
 </head>
 <body>
-  <div class="navbar">
+  <nav class="navbar">
   <ul>
     <li><a href="Livefeed.html">Livefeed</a></li>
     <li><a href="Register_face.html">Register face</a></li>
     <li><a href="Video_operations.html">Video operations</a></li>
     <li><a class="active" href="Users_and_logs_operations.html">Users and logs</a></li>
   </ul>
-</div>
-  
-  <div id="container">
-  <h1>Admin Dashboard (Admin only)</h1>
-  <section id="register-user">
-    <h2>Register New User</h2>
-    <form id="register-form">
-      <label for="reg-username">Username:</label>
-      <input type="text" id="reg-username" 
-      placeholder="Username" 
-      required 
-      pattern="^[a-zA-Z0-9_ ]{3,20}$"
-      title="Username must be 3-20 characters and can include letters, numbers, underscores, and spaces"
-    />
-      <label for="reg-password">Password:</label>
-      <input type="password" 
-      id="reg-password" 
-      placeholder="Password" 
-      required
-      pattern="^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#%^&+=])[a-zA-Z0-9@#%^&+=]{8,64}$"
-  title="Password must be 8-64 characters and include at least one number, one lowercase letter, one uppercase letter, and one special character (@#%^&+=)"
-/>
-      <button id="registerbtn" type="submit">Register</button>
-    </form>
-    <p id="register-error" style="color: red;"></p>
-  </section>
-  
-  <section id="user-list">
-    <h2>Registered Users</h2>
-    <button id="refresh-users">Refresh User List</button>
-    <ul id="users"></ul>
-    <p id="users-management" style="color: red;"></p>
-  </section>
-  
-  <section id="event-logs">
-    <h2>Event Logs</h2>
-    <form id="logs-form">
-      <label for="log-day">Day:</label>
-      <input type="number" id="log-day" placeholder="Day" min="1" max="31" step="1">
-      <label for="log-month">Month:</label>
-      <input type="number" id="log-month" placeholder="Month" min="1" max="12" step="1">
-      <label for="log-year">Year:</label>
-      <input type="number" id="log-year" placeholder="Year" min="1900" max="2100" step="1">
-      <button id="logfetch" type="submit">Get Logs</button>
-    </form>
-    <p><small>Leave fields blank to broaden your search (e.g., enter just a year).</small></p>
-    <ul id="logs"></ul>
-    <p id="logs-error" style="color: red;"></p>
-  </section>
-</div>
+</nav>
+
+  <main id="container">
+    <h1>Admin Dashboard (Admin only)</h1>
+      <section id="register-user">
+        <h2>Register New User</h2>
+          <form id="register-form">
+            <label for="reg-username">Username:</label>
+              <input type="text" id="reg-username" placeholder="Username" pattern="^[a-zA-Z0-9_ ]{3,20}$" 
+                title="Username must be 3-20 characters and can include letters, numbers, underscores, and spaces" required/>
+            <label for="reg-password">Password:</label>
+              <input type="password" id="reg-password"  placeholder="Password" pattern="^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#%^&+=])[a-zA-Z0-9@#%^&+=]{8,64}$"
+                  title="Password must be 8-64 characters and include at least one number, one lowercase letter, one uppercase letter, and one special character (@#%^&+=)" required/>
+            <button id="registerbtn" type="submit">Register</button>
+          </form>
+          <p class="error-message" id="register-error"></p>
+          <p id="register-message" ></p>
+      </section>
+      
+      <section id="user-list">
+        <h2>Registered Users</h2>
+          <button id="refresh-users">Refresh User List</button>
+          <ul id="users"></ul>
+        <p class="error-message" id="users-management-error"></p>
+        <p id="users-management" ></p>
+      </section>
+      
+      <section id="event-logs">
+        <h2>Event Logs</h2>
+          <form id="logs-form">
+            <label for="log-day">Day:</label>
+              <input type="number" id="log-day" placeholder="Day" min="1" max="31" step="1">
+            <label for="log-month">Month:</label>
+              <input type="number" id="log-month" placeholder="Month" min="1" max="12" step="1">
+            <label for="log-year">Year:</label>
+              <input type="number" id="log-year" placeholder="Year" min="1900" max="2100" step="1">
+          <button id="logfetch" type="submit">Get Logs</button>
+          </form>
+        <p><small>Leave fields blank to broaden your search (e.g., enter just a year).</small></p>
+        <ul id="logs"></ul>
+        <p class="error-message" id="logs-error"></p>
+      </section>
+  </main>
   <script type="module" src="js/users_and_logs_operations.js"></script>
 </body>
 </html>

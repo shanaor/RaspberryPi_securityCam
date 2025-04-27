@@ -2,56 +2,15 @@ import axios from 'https://esm.sh/axios';
 axios.defaults.withCredentials = true;
 
 // ---------- CONFIG --------------
-// --- DOM Elements -----
-
-// Refresh live-feed
-const refreshLiveFeedBtn = document.getElementById('refresh-live-feed');
-const liveFeedImg = document.getElementById('live-feed');
-const liveFresh = document.getElementById('livefresh');
-const disappearFeedbtn = document.getElementById('disappear-feed-btn');
-const appearFeedbtn = document.getElementById('appear-feed-btn'); // sent to gemini final check
-
-// Capture_Face
-const startCaptureBtn = document.getElementById('start-capture-btn');
-const cancelCaptureBtn = document.getElementById('cancel-capture-btn');
-
-const facePreviewImg = document.getElementById('face-preview-img');
-const captureStatusMessage = document.getElementById('capture-status-message');
-const captureSpinner = document.getElementById('capture-spinner');
-
-
-// Register_Face
-const registerDetailsForm = document.getElementById('register-details-form');
-
-const firstNameInput = document.getElementById('first-name');
-const lastNameInput = document.getElementById('last-name');
-const firstNameError = document.getElementById('first-name-error');
-const lastNameError = document.getElementById('last-name-error');
-
-const registerFaceBtn = document.getElementById('register-face-btn');
-const registerStatusMessage = document.getElementById('register-status-message');
-
-// Face_list
-const refreshFacesBtn = document.getElementById('refresh-faces');
-const facesListEl = document.getElementById('faces-list');
-
-// Delete Face
-const deleteFaceForm = document.getElementById('delete-face-form');
-const faceIdInput = document.getElementById('delete-face-id');
-const deleteBtn = document.getElementById('deleteBtn');
-
-const deleteMessageEl = document.getElementById('delete-message');
-const faceIdErrorEl = document.getElementById('face-id-error');
-
-
 // --- Error Handler ---
-function handleError_textcontext(error_var,htmltext,failed_action,button) {    
+function handleError_textcontext(error_var,htmltext,failed_action,button,consolemsg) {    
+  console.error(`error in register_face.js ${consolemsg} `,error_var);
+  
   if (error_var.response) { // check if there is an error response from the server
     const status = error_var.response?.status;
-    const detail = error_var.response?.data?.detail;
-    console.error("error in register_face.js:",error_var);
+    const detail = error_var.response?.data?.detail || 'Unknown error';
 
-    if      (status === 400) {htmltext.textContent = `${detail}`;}
+    if      (status === 400) {htmltext.textContent = `${detail}`; button.disabled = false;} // Re-enable button after 400 error
     else if (status === 401) {alert(`${detail}`); window.location.href = '/Login.html';} // Redirect to login to unauthurized users
     else if (status === 403) {alert(`${detail}`); window.location.href = '/Livefeed.html';} // Redirect to livefeed to unauthurized action, to penalize bad behavior
     else if (status === 404) {htmltext.textContent = `${detail}`; button.disabled = false;} // Re-enable button after 404 error 
@@ -63,15 +22,17 @@ function handleError_textcontext(error_var,htmltext,failed_action,button) {
   } else if (error_var.request) {htmltext.textContent = 'Network Error: Could not reach server. REFRESH page and try again'; button.disabled = true;}
     else {htmltext.textContent = `Client Error: ${error_var.message}. REFRESH page and try again`; button.disabled = true;}} // Network connection error
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
 // --- Validation Function ---
-function validate_NameInputs(firstNameElement,lastNameElement,firstNameError,lastNameError) {
+function validate_NameInputs(firstNameElement,lastNameElement,firstNameError,lastNameError,button) {
     // Clear previous messages
     firstNameError.textContent = ''; lastNameError.textContent = '';
   // Validate first name and last name
-      if (!firstNameElement.checkValidity()) {firstNameError.textContent = 'Invalid first name. It must be 3-20 characters long and contain only letters and spaces.'; return false; } // Indicating failure
-      if (!lastNameElement.checkValidity()) {lastNameError.textContent = 'Invalid last name. It must be 3-20 characters long and contain only letters and spaces.'; return false; } // Indicating failure
-      // If both validations pass
-    return true;} // Indicating succes
+      if (!firstNameElement.checkValidity()) {firstNameError.textContent = 'Invalid first name. It must be 3-20 characters long and contain only letters and spaces.'; button.disabled = false;
+        return false; } // Indicating failure
+      if (!lastNameElement.checkValidity()) {lastNameError.textContent = 'Invalid last name. It must be 3-20 characters long and contain only letters and spaces.'; button.disabled = false;
+        return false; } // Indicating failure
+    return true;} // If both validations, pass true Indicating succes
 function validate_poll_configs(POLLING_INTERVAL_MS, MAX_CAPTURE_ATTEMPTS) {
   // Validate inputs
   if (isNaN(POLLING_INTERVAL_MS) || isNaN(MAX_CAPTURE_ATTEMPTS)) {alert("Please enter Only numbers for polling interval and max attempts."); return false;} // Exit if invalid inputs
@@ -89,6 +50,14 @@ let captureAttemptCount = 0;
 let capturedEncoding = null; // Store the received encoding list
 
 // --- Face Capture Logic -------------
+const startCaptureBtn = document.getElementById('start-capture-btn');
+const cancelCaptureBtn = document.getElementById('cancel-capture-btn');
+
+const facePreviewImg = document.getElementById('face-preview-img');
+const captureStatusMessage = document.getElementById('capture-status-message');
+const captureSpinner = document.getElementById('capture-spinner');
+
+
 function stopCaptureProcess(reason, data = null,MAX_CAPTURE_ATTEMPTS) {
   console.log(`Stopping capture process. Reason: ${reason}`);
   isCapturing = false;
@@ -99,17 +68,17 @@ function stopCaptureProcess(reason, data = null,MAX_CAPTURE_ATTEMPTS) {
   cancelCaptureBtn.style.display = 'none'; captureSpinner.style.display = 'none'; facePreviewImg.style.display = 'none'; registerDetailsForm.style.display = 'none'; // Hide form, preview image, spinner and cancel button
 
   switch (reason) {
-      case "Success":
-          captureStatusMessage.textContent = data?.message || 'Face detected. If you want to register the Face enter details below.';
-          facePreviewImg.src = `data:image/jpeg;base64,${data?.image}`; facePreviewImg.style.display = 'block'; // show the image
-          capturedEncoding = data?.encoding; // Store the encoding (as a list)
-          registerDetailsForm.style.display = 'block'; // Show the form
-          break;
-      case "Cancelled": captureStatusMessage.textContent = 'Face capture cancelled.'; capturedEncoding = null; break;
-      case "Timeout": let message = `No face detected after ${MAX_CAPTURE_ATTEMPTS} attempts. Make sure camera green square detection recognized you. And please try again.`;
-            captureStatusMessage.textContent = message ; capturedEncoding = null; break;
-      case "Error": capturedEncoding = null; break; // Error display is handled by the error_handler function
-      default: captureStatusMessage.textContent = 'Capture stopped.'; capturedEncoding = null;}
+    case "Success":
+        captureStatusMessage.textContent = data?.message || 'Face detected. If you want to register the Face to memory, enter the details below.';
+        facePreviewImg.src = `data:image/jpeg;base64,${data?.image}`; facePreviewImg.style.display = 'block'; // show the image
+        capturedEncoding = data?.encoding; // Store the encoding (as a list)
+        registerDetailsForm.style.display = 'block'; // Show the form
+        break;
+    case "Cancelled": captureStatusMessage.textContent = 'Face capture cancelled.'; capturedEncoding = null; break;
+    case "Timeout": let message = `No face detected after ${MAX_CAPTURE_ATTEMPTS} attempts. Make sure camera green square detection recognized you. And please try again.`;
+          captureStatusMessage.textContent = message ; capturedEncoding = null; break;
+    case "Error": capturedEncoding = null; break; // Error display is handled by the error_handler function
+    default: captureStatusMessage.textContent = 'Capture stopped.'; capturedEncoding = null;}
 }
 
 async function pollCaptureFace(MAX_CAPTURE_ATTEMPTS) {
@@ -120,12 +89,10 @@ async function pollCaptureFace(MAX_CAPTURE_ATTEMPTS) {
   if (captureAttemptCount > MAX_CAPTURE_ATTEMPTS) {stopCaptureProcess("Timeout",null,MAX_CAPTURE_ATTEMPTS); return;} // Stop if max attempts reached
 
   try { const res = await axios.get('/capture_face');
-      if (res.data?.status === 'success') {stopCaptureProcess("Success", res.data);} // Face found! Stop polling and process the success 
-      else if (res.data?.status === 'no_face') {captureStatusMessage.textContent =`Searching for face... (Attempt ${captureAttemptCount}/${MAX_CAPTURE_ATTEMPTS})`;} // No face found in this attempt, loop will continue via setInterval
+      if (res?.data?.status === 'success') {stopCaptureProcess("Success", res.data);} // Face found! Stop polling and process the success 
+      else if (res?.data?.status === 'no_face') {captureStatusMessage.textContent =`Searching for face... (Attempt ${captureAttemptCount}/${MAX_CAPTURE_ATTEMPTS})`;} // No face found in this attempt, loop will continue via setInterval
       else {throw new Error("Process successful. But Internal Unexpected response so Face detecting stopped. Is the picture preview shows on screen?");} } // Unexpected success response format
-  catch (error) {
-    console.error(`Error during polling attempt ${captureAttemptCount}:`, error);
-    stopCaptureProcess("Error"); handleError_textcontext(error, captureStatusMessage, "capturing face", startCaptureBtn); } // Stop polling on significant errors and handle the error
+  catch (error) {stopCaptureProcess("Error"); handleError_textcontext(error, captureStatusMessage, "capturing face", startCaptureBtn, `during Face capture attempt, number attempts completed: ${captureAttemptCount}:`); } // Stop polling on significant errors and handle the error
   }
 
 function startCaptureProcess() {
@@ -152,18 +119,33 @@ function startCaptureProcess() {
   pollCaptureFace(MAX_CAPTURE_ATTEMPTS); // Run first attempt immediately
   pollingIntervalId = setInterval(() => pollCaptureFace(MAX_CAPTURE_ATTEMPTS), POLLING_INTERVAL_MS); } // create an interval object that will loop pollCaptureFace function every POLLING_INTERVAL_MS milliseconds
 
+// (listeners for face capture)
+startCaptureBtn.addEventListener('click', startCaptureProcess);
+cancelCaptureBtn.addEventListener('click', () => stopCaptureProcess("Cancelled"));
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
 
 // --- Registration Logic ---
+const registerDetailsForm = document.getElementById('register-details-form');
+
+const firstNameInput = document.getElementById('first-name');
+const lastNameInput = document.getElementById('last-name');
+const firstNameError = document.getElementById('first-name-error');
+const lastNameError = document.getElementById('last-name-error');
+
+const registerFaceBtn = document.getElementById('register-face-btn');
+const registerStatusMessage = document.getElementById('register-status-message');
+
+
 registerDetailsForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   registerFaceBtn.disabled = true;
   registerStatusMessage.textContent = 'Registering...';
 
-  const firstName = firstNameInput.value; const lastName = lastNameInput.value;
+  const firstName = firstNameInput.value.trim().replace(/\s+/g, ' '); 
+  const lastName = lastNameInput.value.trim().replace(/\s+/g, ' ');
 
   // 1. Frontend Validation
-  if (!validate_NameInputs(firstNameInput,lastNameInput,firstNameError,lastNameError)) {registerFaceBtn.disabled = false; registerStatusMessage.textContent = 'Please correct name errors.'; return;}
+  if (!validate_NameInputs(firstNameInput,lastNameInput,firstNameError,lastNameError,registerFaceBtn)) {registerStatusMessage.textContent = 'Please correct name errors.'; return;}
   // 2. Check if encoding was captured
   if (!capturedEncoding) {registerStatusMessage.textContent = 'Error: No face encoding was captured. Please capture first.'; registerFaceBtn.disabled = false; return;}
   // 3. API Call to register the face
@@ -171,23 +153,29 @@ registerDetailsForm.addEventListener('submit', async (e) => {
       const payload = {first_name: firstName, last_name: lastName, encoding: capturedEncoding }; // Send the Names and the stored face encoding list
       const res = await axios.post('/register_face', payload);
 
-      if (res.data?.status === 'success') {
+      if (res?.data?.status === 'success') {
           registerStatusMessage.textContent = res.data.message || `Face registered: ${firstName} ${lastName}`; registerDetailsForm.reset(); registerDetailsForm.style.display = 'none'; // Clear and Hide form
           facePreviewImg.style.display = 'none'; // Hide preview
           capturedEncoding = null; // Clear captured encoding
           fetchFaces(); // Refresh list
           startCaptureBtn.disabled = false; } // Re-enable capture button
-      else {throw new Error('Registration completed with unexpected response. Check that the new registertion exits properly');}} // Handle unexpected success response format
-  catch (error) {console.error('Error during registration:', error); handleError_textcontext(error, registerStatusMessage, "registering face",registerFaceBtn);}
+      else {console.error('Unexpected response:', res.data);
+        throw new Error('Registration completed with unexpected response. Check that the new registertion exits properly');}} // Handle unexpected success response format
+  catch (error) {handleError_textcontext(error, registerStatusMessage, "registering face",registerFaceBtn, 'during face registration:');}
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
 // --- Face List Logic ---
+const refreshFacesBtn = document.getElementById('refresh-faces');
+const facesListEl = document.getElementById('faces-list');
+
 async function fetchFaces() {
   refreshFacesBtn.disabled = true;
-  facesListEl.textContent = 'Loading...';
+  facesListEl.innerHTML = 'Loading...';
   
   try { const res = await axios.get('/list_faces');
-       facesListEl.innerHTML = ''; // Clear loading message only on success
-
+        facesListEl.innerHTML = '';
+      if (!res?.data || !res.data?.faces || !Array.isArray(res.data.faces)) {throw new Error('Unexpected response format: faces should be an array');} // Check if the response proper type
       if (res.data.faces && res.data.faces.length) {
           const fragment = document.createDocumentFragment();
           res.data.faces.forEach(face => {
@@ -196,46 +184,13 @@ async function fetchFaces() {
               li.textContent = `ID: ${face.id}, Name: ${face.first_name} ${face.last_name}, Created: ${new Date(face.created_at).toLocaleString()}`;
               fragment.appendChild(li);
         });
-          facesListEl.appendChild(fragment);} 
-      else {facesListEl.textContent = 'No faces registered';} refreshFacesBtn.disabled = false;} 
-  catch (error_list_faces) {console.error('Error fetching faces:', error_list_faces); handleError_textcontext(error_list_faces, facesListEl, "listing faces", refreshFacesBtn);} }
-
-// ------------------------------------------------------------------------------------
-// --- Delete Face Logic ---
-deleteFaceForm.addEventListener('submit', async (e) => { e.preventDefault();
-  deleteBtn.disabled = true;
-  const faceId = faceIdInput.value;
-  // Clear previous messages
-  deleteMessageEl.textContent = '';
-  faceIdErrorEl.textContent = '';
-
-  try {
-      if (confirm(`Are you sure you want to delete the Registered face ${faceId}? This action cannot be undone.`)) {
-          // Validate face ID input type
-          if (!faceIdInput.checkValidity()) {faceIdErrorEl.textContent = 'Invalid Face ID. It must be a positive integer.'; deleteBtn.disabled = false; return;}
-
-            const res = await axios.delete(`/delete_face/${faceId}`);
-          if (res) {alert(res.data?.message); faceIdInput.value = ''; fetchFaces(); deleteBtn.disabled = false; }} // Refresh the face list after deletion
-      else {alert(`Deletion of face ID ${faceId} was cancelled.`); deleteBtn.disabled = false;}
-  } catch (error) {console.error('Error deleting face in register_face.js:', error); handleError_textcontext(error,deleteMessageEl,"to Delete face", deleteBtn);} 
-});
-
-
-// ------------------------------------------------------------------------------------------------------------------------------------------
-// ------------------------------------------------------------------------------------------------------------------------------------------  
-// --- Event Listeners ---
-// (listeners for Register Face)
-// document.getElementById("capture-attempts").addEventListener("input", (e) => {const value = parseInt(e.target.value, 10); e.target.value = value || "";}); // Force to integer and prevent non-number inputs
-// document.getElementById("capture-interval").addEventListener("input", (e) => {const value = parseInt(e.target.value, 10); e.target.value = value || "";});
-// document.getElementById("capture-attempts").addEventListener("input", (e) => {e.target.value = e.target.value.replace(/[^0-9]/g,'');}); // delete all non-number inputs
-// document.getElementById("capture-interval").addEventListener("input", (e) => {e.target.value = e.target.value.replace(/[^0-9]/g,'');});
-
-// (listeners for face capture)
-startCaptureBtn.addEventListener('click', startCaptureProcess);
-cancelCaptureBtn.addEventListener('click', () => stopCaptureProcess("Cancelled"));
+          facesListEl.appendChild(fragment);} //Add the fragment and Re-enable button 
+      else {const li = document.createElement('li'); li.textContent = 'No faces registered'; facesListEl.appendChild(li);} refreshFacesBtn.disabled = false;} // Button enabled after if-else
+  catch (error) {facesListEl.innerHTML = ''; const li = document.createElement('li'); facesListEl.appendChild(li);
+                 handleError_textcontext(error, li, "listing faces", refreshFacesBtn, 'While fetching faces:');} }
 
 // (listeners for face list)
-refreshFacesBtn.addEventListener('click', () => {fetchFaces(); registerStatusMessage.textContent = '';});
+refreshFacesBtn.addEventListener('click', () => {fetchFaces();});
 window.addEventListener('load', () => {
   fetchFaces(); // Initial fetch on page load
   // Set initial UI state
@@ -243,6 +198,42 @@ window.addEventListener('load', () => {
   cancelCaptureBtn.style.display = 'none';
   facePreviewImg.style.display = 'none';
   startCaptureBtn.style.display = 'inline-block'; startCaptureBtn.disabled = false; });
+// ------------------------------------------------------------------------------------
+
+// --- Delete Face Logic ---
+const deleteFaceForm = document.getElementById('delete-face-form');
+const faceIdInput = document.getElementById('delete-face-id');
+const deleteBtn = document.getElementById('delete-face-btn');
+
+const deleteMessageEl = document.getElementById('delete-message');
+const faceIdErrorEl = document.getElementById('face-id-error');
+
+deleteFaceForm.addEventListener('submit', async (e) => { e.preventDefault();
+  deleteBtn.disabled = true;
+  const faceId = faceIdInput.value;
+  // Clear previous messages
+  deleteMessageEl.textContent = '';
+  faceIdErrorEl.textContent = '';
+
+  try { // Validate face ID input type
+      if (!faceIdInput.checkValidity()) {faceIdErrorEl.textContent = 'Invalid Face ID. It must be a positive integer.'; deleteBtn.disabled = false; return;}
+      if (confirm(`Are you sure you want to delete the Registered face ${faceId}? This action cannot be undone.`)) {
+          
+            const res = await axios.delete(`/delete_face/${faceId}`);
+          if (res) {alert(res.data?.message || `Face ID ${faceId} deleted successfully.`); faceIdInput.value = ''; fetchFaces(); deleteBtn.disabled = false; }} // Refresh the face list after deletion
+      else {alert(`Deletion of face ID ${faceId} was cancelled.`); deleteBtn.disabled = false;}} 
+  catch (error) {handleError_textcontext(error, deleteMessageEl,"to Delete face", deleteBtn, 'While deleting face:');} 
+});
+
+// ------------------------------------------------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------------------------------------------  
+
+//------- Refresh live-feed --------------------------
+const refreshLiveFeedBtn = document.getElementById('refresh-livefeed-btn');
+const liveFeedImg = document.getElementById('live-feed');
+const liveFresh = document.getElementById('livefresh');
+const disappearFeedbtn = document.getElementById('disappear-feed-btn');
+const appearFeedbtn = document.getElementById('appear-feed-btn');
 
 // (listener for Live-Feed refresh)
 refreshLiveFeedBtn.addEventListener('click', () => {
@@ -255,9 +246,17 @@ refreshLiveFeedBtn.addEventListener('click', () => {
 // Hide and show live feed
 disappearFeedbtn.addEventListener('click', () => {
     liveFeedImg.style.display = 'none'; disappearFeedbtn.style.display = 'none'; refreshLiveFeedBtn.style.display = 'none'; 
-    liveFresh.textContent = "Press Start live feed button to show the live feed again.";
+    liveFresh.textContent = "Press Show live feed button to show the live feed again.";
     appearFeedbtn.style.display="inline-block";}); // Hide live feed and show appear button
 appearFeedbtn.addEventListener('click', () => {
     liveFeedImg.style.display = 'block'; disappearFeedbtn.style.display = 'inline-block'; refreshLiveFeedBtn.style.display = 'inline-block';
     liveFresh.textContent = "If livefeed doesn't show, Press refresh button to show the live feed again.";
     appearFeedbtn.style.display="none";});
+
+
+    // --- Possible Event Listeners ---
+// (listeners for Register Face)
+// document.getElementById("capture-attempts").addEventListener("input", (e) => {const value = parseInt(e.target.value, 10); e.target.value = value || "";}); // Force to integer and prevent non-number inputs
+// document.getElementById("capture-interval").addEventListener("input", (e) => {const value = parseInt(e.target.value, 10); e.target.value = value || "";});
+// document.getElementById("capture-attempts").addEventListener("input", (e) => {e.target.value = e.target.value.replace(/[^0-9]/g,'');}); // delete all non-number inputs
+// document.getElementById("capture-interval").addEventListener("input", (e) => {e.target.value = e.target.value.replace(/[^0-9]/g,'');});

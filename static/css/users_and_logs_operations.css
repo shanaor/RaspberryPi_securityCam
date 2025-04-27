@@ -49,7 +49,6 @@
     flex-direction: column;
     gap: 10px;
   }
-  
   form input[type="text"],
   form input[type="password"],
   form input[type="number"] {
@@ -58,7 +57,6 @@
     border-radius: 4px;
     font-size: 1rem;
   }
-  
   form button {
     padding: 10px;
     border: none;
@@ -68,11 +66,25 @@
     font-size: 1rem;
     cursor: pointer;
     transition: background 0.3s ease;
-  }
+  } form button:hover {background: #218838;}
   
-  form button:hover {
-    background: #218838;
-  }
+  #container ul {list-style: none; padding: 0;} /* List Styling */
+  #container ul li { padding: 10px; border-bottom: 1px solid #eee;}
+  
+  #users li { display: flex; justify-content: space-between; align-items: center; padding: 10px;}
+  
+  /* Styling for log parts */
+  .log-id { font-weight: bold; margin-right: 10px;}
+  .log-event {color: #007BFF; margin-right: 10px;} /* Blue for events */
+  .log-description {
+    font-style: italic;
+    flex: 1; /* Allow description to grow and wrap if needed */
+    margin-right: 10px; }
+  .log-timestamp {color: #6c757d;} /* Gray for timestamps */
+  /* Log list styling */
+  #logs {list-style: none; padding: 0;}
+  #logs li {display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; border-bottom: 1px solid #eee;}
+  #logs li:nth-child(even) {background-color: #f9f9f9;} #logs li:hover {background-color: #f0f0f0;}
   
   /* General Button Styling for non-form buttons */
   button {
@@ -84,34 +96,31 @@
     font-size: 1rem;
     cursor: pointer;
     transition: background 0.3s ease;
-  }
-  
-  button:hover {
-    background: #0056b3;
-  }
-  
-  /* List Styling */
-  #container ul {
-    list-style: none;
-    padding: 0;
-  }
-  
-  #container ul li {
-    padding: 10px;
-    border-bottom: 1px solid #eee;
-  }
-  
+  } button:hover {background: #0056b3;}
+  button.secondary { background: #6c757d;} button.secondary:hover { background: #5a6268;}
+  button:disabled {background-color: #ccc; cursor: not-allowed; opacity: 0.7;} /*change opacity for better distinction*/
+
+  .redbtn {
+    background-color: #dc3545; /* Red for delete */
+    padding: 10px 20px; /* Standard button padding */
+  } .redbtn:hover { background-color: #c82333;} /* Darker red on hover */
+
+  .error-message { color: #dc3545; font-size: 0.9rem; margin-top: 10px;}
+  .success-message {
+    color: green;
+    font-size: 0.9rem;
+    margin-top: 10px;
+    padding: 5px;
+    border: 1px solid green;
+    border-radius: 4px; 
+    background-color: #f0fff0;}
+
   /* Responsive Adjustments */
   @media (max-width: 600px) {
-    section {
-      margin: 10px;
-      padding: 15px;
-    }
+    section { margin: 10px; padding: 15px;}
     
     form input,
     form button,
-    button {
-      font-size: 0.9rem;
-    }
+    button {font-size: 0.9rem;}
   }
   

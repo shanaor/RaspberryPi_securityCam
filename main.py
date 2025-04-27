@@ -1,7 +1,7 @@
 
 from python_standalones.day_night import monitor_brightness
 from python_standalones.logger import log_event
-from python_standalones.automatic_camera_functions import recognize_face,camera_feed_function
+from python_standalones.automatic_camera_functions import recognize_face,camera_feed_function, cleanup as cleanup_camera_resources
 from config.config import VIDEO_FOLDER, LOG_DIR, SC_DB_PATH,USER_LOG_DB_PATH
 
 from login import router_login_and_generate_token
@@ -27,10 +27,11 @@ import threading
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 log_event("info", "Script starting (main.py)")
+# --------------------SERVER CONFIG-------------------------------
 app = FastAPI()
 
 
-origins = [ "http://localhost:8123", "http://127.0.0.1:8123", "http://192.168.1.195:8123" ]
+origins = [ "https://localhost:8123", "https://127.0.0.1:8123", "https://192.168.1.195:8123" ]
 
 app.add_middleware(
     CORSMiddleware,
@@ -61,7 +62,19 @@ async def startup_event():
     if startup_retry == 5:
         log_event("critical", "Startup at (main.py) failed after 5 attempts. Exiting program.")
         exit(1)  # Stop execution if startup fails
-        
+
+# -----------------------SHUTDOWN----------------------------------------
+@app.on_event("shutdown")
+async def shutdown_event():
+    log_event("info", "App shutting down, calling camera cleanup...")
+    try:
+        # Directly await your imported async cleanup function
+        await cleanup_camera_resources()
+        log_event("info", "Shutdown process of Camera cleanup function finished (main.py).")
+    except Exception as e:
+        log_event("critical", f"Error calling cleanup_camera_resources during shutdown (main.py): {e}")
+
+# ---------------------APP CONFIG-------------------------------------
 retry_camera = 0
 retry_recognition = 0
 retry_brightness = 0 
@@ -139,7 +152,7 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
         log_event("error", "Method not allowed for endpoint: Unauthorized method access", request)
     return await http_exception_handler(request, exc)
 
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+app.mount("/", StaticFiles(directory="static", html=True), name="static") #The mount have to be after the application fastapi setup+config to work or else does CORS error
 
 if __name__ == "__main__":
     log_event("info", "main block started if python main called directly [not through CLI uvicorn] (main.py - if __main__)")

@@ -7,28 +7,22 @@
   <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
-  <form id="login-form">
-    <p id="error-message"></p>
-    <label for="username">Username</label>
-    <input 
-      type="text" 
-      id="username" 
-      placeholder="Username" 
-      required 
-      pattern="^[a-zA-Z0-9_ ]{3,20}$" 
-      title="Username must be 3-20 characters long and contain only letters, numbers, underscores, or spaces."
-    >
-    <label for="password">Password</label>
-    <input 
-      type="password" 
-      id="password" 
-      placeholder="Password" 
-      required 
-      pattern="^[a-zA-Z0-9@#%^&+=]{8,64}$" 
-      title="Password must be 8-64 characters long, contain only letters, numbers, and special characters (One of these -> @#%^&+=), and meet complexity requirements."
-    >
-    <button type="submit">Login</button>
-  </form>
+  <main>
+    <section>
+      <form id="login-form">
+        <p id="error-message"></p>
+          <label for="username">Username</label>
+            <input 
+              type="text" id="username" placeholder="Username" pattern="^[a-zA-Z0-9_ ]{3,20}$" 
+              title="Username must be 3-20 characters long and contain only letters, numbers, underscores, or spaces." required>
+          <label for="password">Password</label>
+            <input 
+              type="password" id="password" placeholder="Password" pattern="^[a-zA-Z0-9@#%^&+=]{8,64}$" 
+              title="Password must be 8-64 characters long, contain only letters, numbers, and special characters (One of these -> @#%^&+=), and meet complexity requirements." required>
+        <button type="submit">Login</button>
+      </form>
+    </section>
+  </main>
   <script type="module" src="js/login.js"></script>
 </body>
 </html>

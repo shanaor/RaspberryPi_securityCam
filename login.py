@@ -77,10 +77,10 @@ async def authenticate_user(request: Request):
     except HTTPException as e:
         log_event("error", f"HTTPException in authenticate_user function (login.py): {e}", request)
         raise
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as e:
             log_event("warning", f"Token expired in authenticate_user_or_admin function (login.py): {e}", request)
             raise HTTPException(status_code=401, detail=HTTP_ERROR_DETAILS["AUTH_EXPIRED"])
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
             log_event("warning", f"Invalid token in authenticate_user_or_admin function (login.py): {e}", request)
             raise HTTPException(status_code=401, detail=HTTP_ERROR_DETAILS["AUTH_INVALID_TOKEN"])
     except Exception as e:

@@ -17,10 +17,7 @@
   }
 
   /* Header Styling */
-  h1 {
-    margin-bottom: 20px;
-    color: #007BFF;
-  }
+  h1 {margin-bottom: 20px; color: #007BFF;}
   
   /* Button Styling */
   button {
@@ -32,20 +29,11 @@
     cursor: pointer;
     transition: background 0.3s ease;
     margin-bottom: 20px;
-  }
-  
-  button:hover {
-    background: #0056b3;
-  }
+  } button:hover {background: #0056b3;}
+    button:disabled {background-color: #ccc; cursor: not-allowed; opacity: 0.7;}
   
   /* Video List Styling */
-  #video-list {
-    list-style: none;
-    width: 100%;
-    max-width: 600px;
-    padding: 0;
-  }
-  
+  #video-list {list-style: none; width: 100%; max-width: 600px; padding: 0;}
   #video-list li {
     padding: 15px;
     background: #fff;
@@ -54,14 +42,46 @@
     border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
-  
+  /* --- Styling for Download Link in Video List --- */
+#video-list li a {
+  display: inline-block; /* Allows padding, margins, etc. */
+  padding: 6px 12px;     /* Slightly smaller padding than main buttons */
+  margin-left: 10px;    /* Spacing from the video name */
+  background-color: #6c757d; /* Secondary button color (gray) */
+  color: #fff;           /* White text */
+  text-decoration: none;  /* Remove underline */
+  border-radius: 4px;     /* Match button corners */
+  font-size: 0.9rem;      /* Slightly smaller font */
+  line-height: 1.5;       /* Adjust line height if needed for vertical alignment */
+  border: none;           /* Remove default border if any */
+  cursor: pointer;
+  text-align: center;
+  vertical-align: middle; /* Helps align with adjacent buttons */
+  transition: background-color 0.3s ease;
+} #video-list li a:hover {background-color: #5a6268; color: #fff;} /* Darker gray on hover *//* Ensure text remains white */
+
+/* --- Styling for Delete Button in Video List --- */
+#video-list li button {
+  /* Core Delete Styles */
+  background-color: #dc3545;
+  color: #fff;
+  margin-left: 10px;
+  /* Adjustments for Size and Alignment */
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  /* baseline alignment */
+  vertical-align: baseline;
+  transition: background-color 0.3s ease;
+  line-height: normal; /* Ensuring consistent line height */
+} #video-list li button:hover {background-color: #c82333; color: #fff;}
+
   /* Responsive Adjustments */
   @media (max-width: 600px) {
-    body {
-      padding: 10px;
-    }
-    button {
-      width: 100%;
-    }
+    body {padding: 10px;}
+    button {width: 100%;}
+    #video-list {width: 100%;}
   }
   

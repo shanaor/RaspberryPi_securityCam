@@ -12,7 +12,7 @@ import shutil
 import threading
 import datetime
 import time
-import atexit
+import asyncio
 # ------------------------------------------------------------
 # ------------------------------------------------------------
 """"""""""""""""""""""""""""""""""""
@@ -33,19 +33,29 @@ picam2 = Picamera2()
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------
 #  --------------------------------------------------------------------------------------------------------------------------------------------
-async def cleanup(): #Ensure camera resources are released at exit
+async def cleanup(): #Ensure camera resources are released at exit from shutdown in main.py without blocking the uvicorn server shutdown process
     """Release camera resources before exiting."""
     global picam2
     try:
-        if picam2.is_open:
+        if  picam2 is not None and hasattr(picam2, 'is_open') and picam2.is_open:
             Global_cam_var.loop_flag = False
-            await picam2.stop()
-            await picam2.close()
+            await asyncio.sleep(0.1) #Give the threads alittle time to shutdown to prevent a hiccup
+            log_event("info", "Stoping camera (cleanup function automatic_camera_functions.py).")
+            await asyncio.to_thread(picam2.stop)
+            log_event("info", "Camera stopped, closing (cleanup function automatic_camera_functions.py).")
+            await asyncio.to_thread(picam2.close)
             log_event("info", "Camera resources released and thread loops stopped using cleanup function (automatic_camera_functions.py).")
+        else:
+            is_open_status = 'Attribute missing or object is None' # Default explanation
+            picam_exists = picam2 is not None
+            if picam_exists and hasattr(picam2, 'is_open'):
+                is_open_status = picam2.is_open # Get status if attribue exists
+            log_event("warning", f"Cleanup called, but no action taken. Picam object exists: {picam_exists}, Is open status: {is_open_status}, Loop flag: {Global_cam_var.loop_flag}")
+            print(f"Cleanup: No action taken. Picam exists: {picam_exists}, Open Status: {is_open_status}") # print fallback
     except Exception as e:
-        log_event("critical", f"Error during cleanup function using atexit (automatic_camera_functions.py): {e}")
-atexit.register(cleanup)  # Registering camera resources release, protecting camera and raspberryPi resources
-
+        log_event("critical", f"Error during cleanup function using FastAPI shutdown event in main.py (automatic_camera_functions.py): Picam resource:{picam2}, flag: {Global_cam_var.loop_flag}. Error detail: {e}")
+        print(f"CRITICAL: Error during cleanup: {e}") #emergency logging incase of failure in shutdown
+        
 def compute_encoding_hash(encoding):
     """Generate a scalar value from a face encoding for fast database lookup."""
     try:
@@ -147,7 +157,7 @@ def recognize_face():
     recognized_id = set()
     people = set()
     video_name = None # if by fringe chance log_event shows video_name as None, it indicates error in the code. should be "unknown+date" or "name+date"
-    frame_counter = 0 # to control frame flow incase CPU cant handle 20fps on face recognition
+    # frame_counter = 0 # to control frame flow incase CPU cant handle 20fps on face recognition
     while Global_cam_var.loop_flag:
         start_time = time.time()
         try:
@@ -203,7 +213,8 @@ def recognize_face():
                             start_recording(video_name, frame_width, frame_height)
             elif Global_Rec_variable.recording:
                 stop_recording()
-                log_msg = f"{people} with ID's {recognized_id} were recognized, recorded, and saved to file {video_name}"
+                face_id = recognized_id if recognized_id else 'unknown'
+                log_msg = f"{people} with ID's {face_id} were recognized, recorded, and saved to file {video_name}"
                 log_event("info", log_msg) 
                 log_event_db("Face detected", log_msg)
                 recognized_name = "Unknown"  # Reset after recording ends

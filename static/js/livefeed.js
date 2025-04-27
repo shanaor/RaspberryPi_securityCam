@@ -13,9 +13,10 @@ function handleInitialError(error) {
 
     if (error.response) { const status = error.response?.status;
         if (status === 401) {alert('Unauthorized. Redirecting to login...'); window.location.href = '/Login.html';} 
-        else if (status === 404) {statusMessage.textContent = 'Live feed not available. Click Refresh page (or press CTRL-R) to try again.';} // Check what status logs here
-        else {statusMessage.textContent = `Error: ${status}. Click Refresh page (or press CTRL-R) to try again if persists tell support.`;}} // Check what status logs here 
-    else {statusMessage.textContent = 'Network error. Click Refresh page (or press CTRL-R) to try again.';} } // Handle network errors
+        else if (status === 404) {statusMessage.textContent = 'Live feed not available. Click Refresh page to try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)';} // Check what status logs here
+        else if (status === 500) {statusMessage.textContent = 'Server error. Try again later or contact support. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)';}
+        else {statusMessage.textContent = `Error: ${status}. Click Refresh page to try again if persists tell support. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)`;}} // Check what status logs here 
+    else {statusMessage.textContent = 'Network error. Click Refresh page to try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)';} } // Handle network errors
 
 // ------------------------------------------------------------------
 // ------------------------------------------------------------------
@@ -36,20 +37,29 @@ async function updateLiveFeed() {
         const url = `/video_feed?timestamp=${timestamp}`;
         const response = await axios.head(url); // Check stream availability with Axios
         
-        if (response.status === 200) {liveFeedImg.src = url;}
-         // Set the src if stream is available 
-        else {handleInitialError(response.status);}} // Check what status logs here} 
+        if (response.status === 200) {liveFeedImg.src = url;}} // Set the src if stream is available  
     catch (error) {handleInitialError(error);} }
 
 // When the image loads successfully: 
 liveFeedImg.onload = () => {
+    if (liveFeedImg.complete && liveFeedImg.naturalWidth !== 0) { // Checks that image is downloaded fully 
+    refreshBtn.disabled = true;
     spinner.style.display = 'none'; // Hide the spinner
     statusMessage.textContent = ''; // Clear the status message
     liveFeedImg.style.display = 'block'; // Show the image
-    refreshBtn.disabled = false; }; 
+    retryDelay = 1000; // Reset retry time variable
+    refreshBtn.style.display = 'inline-block';
+    setTimeout( () => {refreshBtn.disabled = false;}, 2000);};}
 //  ------------------------------------------------------------------
 // When the stream fails mid-feed
-liveFeedImg.onerror = () => {liveFeedImg.style.display = 'none'; spinner.style.display= 'block'; statusMessage.textContent= 'Live feed lost. Retrying in 1 second...'; setTimeout(updateLiveFeed, 1000); };
+let retryDelay = 1000;
+liveFeedImg.onerror = () => {
+    refreshBtn.style.display = 'none';
+    liveFeedImg.style.display = 'none';
+    spinner.style.display = 'block';
+    statusMessage.textContent = `Live feed lost. Retrying in ${retryDelay/1000} seconds...`;
+    setTimeout(updateLiveFeed, retryDelay);
+    retryDelay = Math.min(retryDelay * 2, 10000);}; // Cap at 10s
 
 // Event listeners to actiavte when even happens ----------------------------
 refreshBtn.addEventListener('click', updateLiveFeed);

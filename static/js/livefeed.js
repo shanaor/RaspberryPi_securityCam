@@ -26,41 +26,34 @@ const refreshBtn = document.getElementById('refresh-feed');
 const statusMessage = document.getElementById('status-message');
 const spinner = document.querySelector('.spinner');
 
-spinner.style.display = 'block'; // Show the spinner until image loads
-statusMessage.textContent = 'Loading live feed...'; // Update status message
-
 // Function to update the live feed
 async function updateLiveFeed() {
     try {
+        spinner.style.display = 'block'; // Show the spinner until image loads
+        statusMessage.textContent = 'Loading live feed...'; // Update status message
         // Add a timestamp to prevent caching issues
         const timestamp = new Date().getTime();
         const url = `/video_feed?timestamp=${timestamp}`;
         const response = await axios.head(url); // Check stream availability with Axios
-        
-        if (response.status === 200) {liveFeedImg.src = url;}} // Set the src if stream is available  
+        if (response.status === 200) {
+        console.log("200, Stream available, displaying livestream");
+        refreshBtn.disabled = true;
+        spinner.style.display = 'none'; // Hide the spinner
+        statusMessage.textContent = ''; // Clear the status message
+        liveFeedImg.style.display = 'block'; // Show the image
+        refreshBtn.style.display = 'inline-block';
+        setTimeout( () => {refreshBtn.disabled = false;}, 2000); }}
     catch (error) {handleInitialError(error);} }
 
-// When the image loads successfully: 
-liveFeedImg.onload = () => {
-    if (liveFeedImg.complete && liveFeedImg.naturalWidth !== 0) { // Checks that image is downloaded fully 
-    refreshBtn.disabled = true;
-    spinner.style.display = 'none'; // Hide the spinner
-    statusMessage.textContent = ''; // Clear the status message
-    liveFeedImg.style.display = 'block'; // Show the image
-    retryDelay = 1000; // Reset retry time variable
-    refreshBtn.style.display = 'inline-block';
-    setTimeout( () => {refreshBtn.disabled = false;}, 2000);};}
-//  ------------------------------------------------------------------
 // When the stream fails mid-feed
-let retryDelay = 1000;
-liveFeedImg.onerror = () => {
+liveFeedImg.onerror = (e) => {
+    console.error("Image load error:", e);
     refreshBtn.style.display = 'none';
     liveFeedImg.style.display = 'none';
     spinner.style.display = 'block';
-    statusMessage.textContent = `Live feed lost. Retrying in ${retryDelay/1000} seconds...`;
-    setTimeout(updateLiveFeed, retryDelay);
-    retryDelay = Math.min(retryDelay * 2, 10000);}; // Cap at 10s
+    statusMessage.textContent = `Live feed lost. Retrying in 5 seconds...`;
+    setTimeout(() =>{window.location.reload(true);}, 5000);} // reload page after 5 seconds, cant reload streaming request with timestamp
 
 // Event listeners to actiavte when even happens ----------------------------
-refreshBtn.addEventListener('click', updateLiveFeed);
+refreshBtn.addEventListener('click', () =>{window.location.reload(true);});
 window.addEventListener('load', updateLiveFeed);

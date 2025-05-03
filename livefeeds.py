@@ -30,22 +30,22 @@ async def generate_frames():
                 continue
         
         except cv2.error as e:
-            log_event("critical", f"OpenCV error in generate_frames (livefeeds.py): {e}")
+            log_event("critical", f"OpenCV error in generate_frames (livefeeds.py): {e}", exc_info=True)
             yield b'--frame\r\nContent-Type: text/plain\r\n\r\nStream error, retrying...\r\n'
             await asyncio.sleep(1)  # delay for recovery
             continue
         except ValueError as e:
-            log_event("critical", f"ValueError in generate_frames (livefeeds.py): {e}")
+            log_event("critical", f"ValueError in generate_frames (livefeeds.py): {e}", exc_info=True)
             yield b'--frame\r\nContent-Type: text/plain\r\n\r\nInvalid input, retrying...\r\n'
             await asyncio.sleep(1)  # delay for recovery
             continue
         except TypeError as e:
-            log_event("critical", f"TypeError in generate_frames (livefeeds.py): {e}")
+            log_event("critical", f"TypeError in generate_frames (livefeeds.py): {e}", exc_info=True)
             yield b'--frame\r\nContent-Type: text/plain\r\n\r\nType mismatch, retrying...\r\n'
             await asyncio.sleep(1)  # delay for recovery
             continue
         except Exception as e:
-            log_event("critical", f"Error in generate_frames (livefeeds.py): {e}")
+            log_event("critical", f"Error in generate_frames (livefeeds.py): {e}", exc_info=True)
             yield b'--frame\r\nContent-Type: text/plain\r\n\r\nStream error, retrying...\r\n'
             await asyncio.sleep(1)  # delay for recovery
             continue
@@ -56,7 +56,7 @@ async def video_feed(request:Request,current_user: dict = Depends(authenticate_u
     """Livestream endpoint for the frontend (Users + Admin)."""
     is_admin, user_id = current_user.get("is_admin"), current_user.get("user_id")
     log_event("info", f"User accessed video_feed function (livefeeds.py), Method: {request.method}, Admin status: {is_admin}, User:{user_id}", request)
-    return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+    return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame", headers={"Cache-Control": "no-cache"})
 # ------------------------------------------------------------
 # ------------------------------------------------------------
 async def generate_register_frames():
@@ -86,22 +86,22 @@ async def generate_register_frames():
                 continue
         
         except cv2.error as e:
-            log_event("critical", f"OpenCV error in generate_register_frames (livefeeds.py): {e}")
+            log_event("critical", f"OpenCV error in generate_register_frames (livefeeds.py): {e}", exc_info=True)
             yield b'--frame\r\nContent-Type: text/plain\r\n\r\nStream error, retrying...\r\n'
             await asyncio.sleep(1)  # delay for recovery
             continue
         except ValueError as e:
-            log_event("critical", f"ValueError in generate_register_frames (livefeeds.py): {e}")
+            log_event("critical", f"ValueError in generate_register_frames (livefeeds.py): {e}", exc_info=True)
             yield b'--frame\r\nContent-Type: text/plain\r\n\r\nInvalid input, retrying...\r\n'
             await asyncio.sleep(1)  # delay for recovery
             continue
         except TypeError as e:
-            log_event("critical", f"TypeError in generate_register_frames (livefeeds.py): {e}")
+            log_event("critical", f"TypeError in generate_register_frames (livefeeds.py): {e}", exc_info=True)
             yield b'--frame\r\nContent-Type: text/plain\r\n\r\nType mismatch, retrying...\r\n'
             await asyncio.sleep(1)  # delay for recovery
             continue
         except Exception as e:
-            log_event("critical", f"Error in generate_register_frames (livefeeds.py): {e}")
+            log_event("critical", f"Error in generate_register_frames (livefeeds.py): {e}", exc_info=True)
             yield b'--frame\r\nContent-Type: text/plain\r\n\r\nStream error, retrying...\r\n'
             await asyncio.sleep(1)  # delay for recovery
             continue

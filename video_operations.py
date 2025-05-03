@@ -8,9 +8,12 @@ from fastapi.responses import FileResponse
 from typing import List
 import os
 
+""" FOR NOW I LEFT THIS MDULE FOR THE FASTAPI AUTOMATIC API ASYNC FUNCTION, TO HADNLE THE CONCURENCY FOR THIS FUNCTIONS. 
+THEY ARE SUPPOSED TO BE FAST AND FUNCITONING WELL"""
+
 router_videos_list = APIRouter()
 @router_videos_list.get("/videos_list/", response_model=List[str])
-async def list_videos(request:Request,current_user: dict = Depends(authenticate_user)):
+def list_videos(request:Request,current_user: dict = Depends(authenticate_user)):
     """List all available video files (Users + Admin)."""
     try:
         is_admin = current_user.get("is_admin")
@@ -26,7 +29,7 @@ async def list_videos(request:Request,current_user: dict = Depends(authenticate_
         videos = os.listdir(VIDEO_FOLDER)
         log_event("info", f"Filtered video files: {videos}", request)
         
-        # If you only want to return specific file types, filter them For example, if you only want video files --> add: if file.lower().endswith(('.mp4', '.avi', '.mov', '.mkv'))
+        # If to return specific file types, filtering them For example, if only video files --> adding: if file.lower().endswith(('.mp4', '.avi', '.mov', '.mkv'))
         # videos = [file for file in all_files]
                 # For debugging, log the files found
         # log_event("info", f"Found files in directory: {all_files}", request)
@@ -36,13 +39,15 @@ async def list_videos(request:Request,current_user: dict = Depends(authenticate_
             raise HTTPException(status_code=404, detail=HTTP_ERROR_DETAILS["NOT_FOUND_NO_VIDEOS_LIST"])
         log_event("info", f"User accessed /videos_list, listed all videos (video_operations.py), accessed by admin status:{is_admin}, user:{user_id}",request) 
         return videos
+    except HTTPException as e:
+        raise
     except Exception as e:
-        log_event("critical", f"list_videos function error (video_operations.py): {e}. accessed by admin status:{is_admin}, user:{user_id}",request)
+        log_event("critical", f"list_videos function error (video_operations.py): {e}. accessed by admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_GENERAL_EXCEPTION"])
     
 router_video_download = APIRouter()
 @router_video_download.get("/videos/download/{filename}")
-async def download_video(filename: str,request:Request,current_user: dict = Depends(authenticate_user)):
+def download_video(filename: str,request:Request,current_user: dict = Depends(authenticate_user)):
     """Download a specific video (Users + Admin)."""
     try:
         is_admin = current_user.get("is_admin")
@@ -51,16 +56,18 @@ async def download_video(filename: str,request:Request,current_user: dict = Depe
         file_path = os.path.join(VIDEO_FOLDER, filename)
         if not os.path.exists(file_path):
             log_event("error", f"User accessed /videos/download, no video was found (video_operations.py), accessed by admin status:{is_admin}, user:{user_id}",request)
-            raise await HTTPException(status_code=404, detail=HTTP_ERROR_DETAILS["NOT_FOUND_VIDEO_FILE"])
+            raise HTTPException(status_code=404, detail=HTTP_ERROR_DETAILS["NOT_FOUND_VIDEO_FILE"])
         log_event("warning", f"User accessed /videos/download, downloaded {filename} (video_operations.py), accessed by admin status:{is_admin}, user:{user_id} ",request)
         return FileResponse(file_path, media_type="video/mp4", filename=filename)
+    except HTTPException as e:
+        raise
     except Exception as e:
-        log_event("critical", f"download_video function error (video_operations.py): {e}. accessed by admin status:{is_admin}, user:{user_id}",request)
+        log_event("critical", f"download_video function error (video_operations.py): {e}. accessed by admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_GENERAL_EXCEPTION"])
 
 router_delete_video = APIRouter()
 @router_delete_video.delete("/videos/delete/{filename}")
-async def delete_video(filename: str,request:Request,current_user: dict = Depends(authenticate_user)):
+def delete_video(filename: str,request:Request,current_user: dict = Depends(authenticate_user)):
     """Delete a specific video (Admin)."""
     try:
         is_admin = current_user.get("is_admin")
@@ -77,6 +84,8 @@ async def delete_video(filename: str,request:Request,current_user: dict = Depend
         os.remove(file_path)
         log_event("warning", f"User accessed /videos/delete and deleted {filename} (video_operations.py). accessed by admin status:{is_admin}, user:{user_id}",request)
         return {"message": f"Video '{filename}' has been deleted."}
+    except HTTPException as e:
+        raise
     except Exception as e:
-        log_event("critical", f"delete_video function error (video_operations.py): {e}. accessed by admin status:{is_admin}, user:{user_id}",request)
+        log_event("critical", f"delete_video function error (video_operations.py): {e}. accessed by admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_GENERAL_EXCEPTION"])

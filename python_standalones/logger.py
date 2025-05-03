@@ -34,7 +34,7 @@ error_logger.addHandler(error_handler)
 error_logger.setLevel(logging.ERROR)
 
 # Logging function with IP tracking
-def log_event( level: str, message: str,request: Optional[Request] = None):
+def log_event( level: str, message: str,request: Optional[Request] = None, exc_info: bool = False):
     """
     Logs an event with the specified level and message, including the client's IP address if available.
 
@@ -42,6 +42,8 @@ def log_event( level: str, message: str,request: Optional[Request] = None):
         level (str): The log level (e.g., "info", "warning", "error", "critical").
         message (str): The message to log.
         request (Optional[Request]): The FastAPI request object to extract the client's IP address.
+        exc_info: bool: True or False statment to allow Traceback and get the full details of the except log.
+        ----->> example: exc_info = True ----->>> traceback, in "this" file, error in this line (??) in function "abcd"
 
     Raises:
         ValueError: If an invalid log level is provided.
@@ -53,13 +55,13 @@ def log_event( level: str, message: str,request: Optional[Request] = None):
     try:
         level = level.lower()
         if level == "info":
-            logger.info(log_message)
+            logger.info(log_message, exc_info=exc_info)
         elif level == "warning":
-            logger.warning(log_message)
+            logger.warning(log_message, exc_info=exc_info)
         elif level == "error":
-            logger.error(log_message)
+            logger.error(log_message, exc_info=exc_info)
         elif level == "critical":
-            logger.critical(log_message)
+            logger.critical(log_message, exc_info=exc_info)
         else:
             raise ValueError(f"Invalid log level: {level}")
         
@@ -68,5 +70,5 @@ def log_event( level: str, message: str,request: Optional[Request] = None):
         
     except Exception as e:
         # Log the error to the error logger and fallback to console
-        error_logger.error(f"Logging failed: {e}")
-        print(f"Logging failed: {e}")
+        error_logger.error(f"Logging failed for message --> {message}: {e}", exc_info=True)
+        print(f"Logging failed for message --> {message}: {e}")

@@ -55,13 +55,14 @@ async def cleanup(): #Ensure camera resources are released at exit from shutdown
     except Exception as e:
         log_event("critical", f"Error during cleanup function using FastAPI shutdown event in main.py (automatic_camera_functions.py): Picam resource:{picam2}, flag: {Global_cam_var.loop_flag}. Error detail: {e}")
         print(f"CRITICAL: Error during cleanup: {e}") #emergency logging incase of failure in shutdown
+        raise
         
 def compute_encoding_hash(encoding):
     """Generate a scalar value from a face encoding for fast database lookup."""
     try:
         return float(min(max(np.prod(encoding), -1e308), 1e308))  # Multiply all elements together for fast lookup, and clamp to avoid overflow
-    except OverflowError:
-        log_event("critical", "Overflow error in compute_encoding_hash function (automatic_camera_functions.py)")
+    except OverflowError as e:
+        log_event("critical", f"Overflow error in compute_encoding_hash function (automatic_camera_functions.py): {e}")
         return None
     except Exception as e:
         log_event("critical", f"compute_encoding_hash function error (automatic_camera_functions.py): {e}")
@@ -80,7 +81,7 @@ def get_frame_safe(): #async executor
         return None
     finally:
         if Global_cam_var.frame is None:
-            log_event("debug", "No frame available in get_frame_safe function (automatic_camera_functions.py).")
+            log_event("critical", "No frame available in get_frame_safe function (automatic_camera_functions.py).")
 
 def retrieve_candidates(encoding_hash: float, tolerance: float = 0.001) -> list:
     """Retrieve candidate face records from the database where the encoding_hash is within the specified tolerance for fast pre-filtering in face recognition."""
@@ -120,7 +121,7 @@ def camera_feed_function():
         picam2.start()
         log_event("info", "Camera initialized successfully (camera_feed_function at automatic_camera_functions.py).")
     except Exception as e:
-        log_event("critical", f"Failed to configure or start camera (camera_feed_function at automatic_camera_functions.py): {e}") 
+        log_event("critical", f"Failed to configure or start camera (camera_feed_function at automatic_camera_functions.py): {e}",exc_info=True) 
         
     while Global_cam_var.loop_flag:
         try:
@@ -147,7 +148,7 @@ def camera_feed_function():
                 log_event("info", "Camera reinitialized successfully (camera_feed_function at automatic_camera_functions.py).")
                 continue
             except Exception as restart_error:
-                log_event("critical", f"Failed to reinitialize camera (camera_feed_function at automatic_camera_functions.py): {restart_error}")
+                log_event("critical", f"Failed to reinitialize camera (camera_feed_function at automatic_camera_functions.py): {restart_error}", exc_info=True)
                 continue
         
 def recognize_face():
@@ -222,11 +223,11 @@ def recognize_face():
                 people.clear()
             time.sleep(max(FRAME_TIME_INTERVAL - (time.time() - start_time), 0))  # ~20 FPS, synced with camera_feed
         except cv2.error as e:
-            log_event("critical", f"OpenCV error in recognize_face (automatic_camera_functions.py): {e}")
+            log_event("critical", f"OpenCV error in recognize_face (automatic_camera_functions.py): {e}", exc_info=True)
             time.sleep(1)
             continue
         except Exception as e:
-            log_event("critical", f"recognize_face function error (automatic_camera_functions.py): {e}")
+            log_event("critical", f"recognize_face function error (automatic_camera_functions.py): {e}", exc_info=True)
             time.sleep(1)
             continue
         

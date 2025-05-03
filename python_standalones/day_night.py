@@ -74,6 +74,7 @@ def update_config(new_mode):
         log_event("critical", f"Permission denied reading\writing {CONFIGTXT} at function update_config (day_night.py): {e}")
     except Exception as e:
         log_event("critical", f"update_config function error (day_night.py): {e}")
+        raise
 
 def write_log(brightness,current_mode):
     global last_date
@@ -92,6 +93,7 @@ def write_log(brightness,current_mode):
             log.write(f"{timestamp} - Brightness: {brightness} - Camera Mode: {current_mode}\n")
     except Exception as e:
             log_event("critical", f"write_log function error (day_night.py): {e}")
+            raise
 
 def monitor_brightness():
     """Continuously monitor brightness and switch modes when needed.
@@ -133,6 +135,6 @@ def monitor_brightness():
             elif high_brightness_count >= 9 and current_mode == "night":
                 update_config("normal")
         except Exception as e:
-            log_event("critical", f"monitor_brightness function error (day_night.py): {e}")
+            log_event("critical", f"monitor_brightness function error (day_night.py): {e}", exc_info=True)
             time.sleep(1)
             continue

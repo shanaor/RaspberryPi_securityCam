@@ -72,16 +72,16 @@ def cleanup_recordings(target_free_percent=FREE_PERCENTAGE_TRAGET):
                     log_event("info", f"Reached target free space ({target_free_percent}%). Cleanup complete. Deleted {deleted_count} files. total size: {total_space_freed}GB (recording_config.py)")
                     break
             except OSError as e:
-                log_event("error", f"Failed to delete {filename} (recording_config.py): {e}")
+                log_event("error", f"Failed to delete {filename} (recording_config.py): {e}", exc_info=True)
                 continue
             except FileNotFoundError as ffe:
-                log_event("critical", f"Error cleaning up recordings (recording_config.py): {ffe}")
+                log_event("critical", f"Error cleaning up recordings (recording_config.py): {ffe}", exc_info=True)
                 continue
             except PermissionError as pe:
                 log_event("critical", f"Permission Error cleaning up recordings (recording_config.py): {pe}")
                 raise
             except Exception as e:
-                log_event("error", f"Error deleting file '{filename}' (recording_config.py): {e}")
+                log_event("error", f"Error deleting file '{filename}' (recording_config.py): {e}", exc_info=True)
                 continue
         # Final check to see if we reached the target free space
         if free < target_free_space:

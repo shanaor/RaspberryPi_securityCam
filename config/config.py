@@ -36,7 +36,7 @@ FREE_PERCENTAGE_TRAGET = 20 # Percentage %
 
 # ------------ HTTP_ERROR MESSAGES -------------------
 HTTP_ERROR_DETAILS = {
-    # --- 400 Bad Request ---
+    # --- 400 + 422 Bad Request ---
     "BAD_REQUEST_NO_FACE": "No face detected. TRY AGAIN. please make sure to be properly in frame, use the green square as indicature.",
     "BAD_REQUEST_CAMERA_FAIL": "Camera not accessible, REFRESH the page and try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)",
     "BAD_REQUEST_INVALID_IMAGE": "Invalid image data. REFRESH the page and try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)",
@@ -47,10 +47,10 @@ HTTP_ERROR_DETAILS = {
     "AUTH_REQUIRED": "Log in required. please log in. You will be redirected to the login page.",
     "AUTH_EXPIRED": "Access Permission needed, please log in. You will be redirected to the login page.",
     "AUTH_INVALID_TOKEN": "Invalid access, please log in. You will be redirected to the login page.",
-
+    
     # --- 403 Forbidden ---
     "FORBIDDEN_ADMIN_ONLY": "Unauthorized access. Admin only action. You will be redirected to the Livefeed page.",
-
+    "DISABLED_USER": "You were unauthorized from the system. hash it out?",
     # --- 404 Not Found ---
     "NOT_FOUND_USER_ID": "User with ID '{user_id}' not found",
     "NOT_FOUND_FACE_ID": "No face found with ID {face_id}",

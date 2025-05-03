@@ -24,6 +24,7 @@ import uvicorn
 import os
 import time
 import threading
+import asyncio
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 log_event("info", "Script starting (main.py)")
@@ -51,14 +52,14 @@ async def startup_event():
             os.makedirs(f"{LOG_DIR}", exist_ok=True)
             # Initialize databases
             if not os.path.exists(SC_DB_PATH) or not os.path.exists(USER_LOG_DB_PATH):
-                await initialize_user_and_logs_database()
-                await initialize_face_db()
+                await asyncio.to_thread(initialize_user_and_logs_database)
+                await asyncio.to_thread(initialize_face_db)
                 log_event("info", "Databases initialized if not exists (main.py)")
             break # Exit loop if setup successful
         except Exception as e:
             startup_retry += 1
-            log_event("critical", f"Failure at (main.py) startup logic (Attempt {startup_retry}/5): {e}")
-            time.sleep(5)  # Prevent spamming retries
+            log_event("critical", f"Failure at (main.py) startup logic (Attempt {startup_retry}/5): {e}", exc_info=True)
+            await asyncio.sleep(5)  # Prevent spamming retries
     if startup_retry == 5:
         log_event("critical", "Startup at (main.py) failed after 5 attempts. Exiting program.")
         exit(1)  # Stop execution if startup fails
@@ -72,7 +73,7 @@ async def shutdown_event():
         await cleanup_camera_resources()
         log_event("info", "Shutdown process of Camera cleanup function finished (main.py).")
     except Exception as e:
-        log_event("critical", f"Error calling cleanup_camera_resources during shutdown (main.py): {e}")
+        log_event("critical", f"Error calling cleanup_camera_resources during shutdown (main.py): {e}", exc_info=True)
 
 # ---------------------APP CONFIG-------------------------------------
 retry_camera = 0
@@ -88,7 +89,7 @@ while retry_camera < 5:
         break  # Exiting loop after success
     except Exception as e:
         retry_camera += 1
-        log_event("critical", f"Failed to start camera thread (main.py) (Attempt {retry_camera}/5): {e}")
+        log_event("critical", f"Failed to start camera thread (main.py) (Attempt {retry_camera}/5): {e}", exc_info=True)
         time.sleep(5)
 if retry_camera == 5:
     log_event("critical", "Camera feed Thread start (main.py) failed after 5 attempts. Exiting program.")
@@ -103,7 +104,7 @@ while retry_recognition < 5:
         break  # Exit loop if successful
     except Exception as e:
         retry_recognition += 1
-        log_event("critical", f"Failed to start face recognition thread (main.py) (Attempt {retry_recognition}/5): {e}")
+        log_event("critical", f"Failed to start face recognition thread (main.py) (Attempt {retry_recognition}/5): {e}", exc_info=True)
         time.sleep(5)
 if retry_recognition == 5:
     log_event("critical", "Face recognition Thread (main.py) start failed after 5 attempts. Exiting program.")
@@ -118,7 +119,7 @@ while retry_brightness < 5:
         break  # Exit loop if successful
     except Exception as e:
         retry_brightness += 1
-        log_event("critical", f"Failed to start monitor_brightness thread (main.py) (Attempt {retry_brightness}/5): {e}")
+        log_event("critical", f"Failed to start monitor_brightness thread (main.py) (Attempt {retry_brightness}/5): {e}", exc_info=True)
         time.sleep(5)
 if retry_brightness == 5:
     log_event("critical", "Monitor_brightness thread (main.py) start failed after 5 attempts. Continuing program, PLEASE FIX.")

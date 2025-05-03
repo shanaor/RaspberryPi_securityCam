@@ -29,12 +29,11 @@ def compute_encoding_hash(encoding): # The encoding variable here is a local var
     except OverflowError as e:
         log_event("error", f"Overflow error in compute_encoding_hash function (register_face.py): {e}")
         raise
-    except Exception as e:
-        log_event("critical", f"compute_encoding_hash function error (register_face.py): {e}")
-        raise #propagate the error to the calling function for upper level handling
 
 def save_face_to_db(first_name, last_name, encoding): # The encoding variable here is a local variable using the global value on par with python rules.
-    """Store face encoding in SQLite database."""
+    """Store face encoding in SQLite database. 
+    Args: first name, last name, byte code of the face encoding (128 floats), 
+          and the encoding hash to use as a fetch key """
     try:
         encoding_hash = compute_encoding_hash(encoding)
         
@@ -45,12 +44,7 @@ def save_face_to_db(first_name, last_name, encoding): # The encoding variable he
                 VALUES (?, ?, ?, ?)
             ''', (first_name, last_name, encoding.tobytes(), encoding_hash))
             conn.commit()
-    
     except sqlite3.Error as e:
-        log_event("critical", f"save_face_to_db function error (register_face.py): {e}")
-        raise
-    except Exception as e:
-        log_event("critical", f"Unexpected error in save_face_to_db function (register_face.py): {e}")
         raise
 # ------------------------------------------------------------
 # ------------------------------------------------------------
@@ -70,7 +64,7 @@ async def capture_face(request:Request, current_user: dict = Depends(authenticat
         
         frame_local = await asyncio.wait_for(asyncio.to_thread(get_frame_safe), timeout=5.0) # prevent unresponsiveness of the camera if it gets stuck
         if frame_local is None:
-            log_event("error", f"User accessed capture_face function (register_face.py), camera failed. admin status:{is_admin}, user:{user_id}", request)
+            log_event("error", f"User accessed capture_face function (register_face.py), camera failed. admin status:{is_admin}, user:{user_id}",request)
             raise HTTPException(status_code=400, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_CAMERA_FAIL"])
 
         # Convert frame to RGB for face recognition
@@ -85,8 +79,8 @@ async def capture_face(request:Request, current_user: dict = Depends(authenticat
             # Process the first face
             location, encoding = face_locations[0], face_encodings[0]
             if not isinstance(encoding, np.ndarray) or encoding.shape[0] != 128:
-                log_event("error", "Invalid face encoding shape during registration attempt.", request)
-                raise HTTPException(status_code=400, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_INVALID_INPUT"])
+                log_event("error", "Invalid face encoding shape during registration attempt.", request, exc_info=True)
+                raise HTTPException(status_code=422, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_INVALID_INPUT"])
             top, right, bottom, left = location
             await asyncio.wait_for(asyncio.to_thread(cv2.rectangle, frame_local, (left, top), (right, bottom), (0, 255, 0), 2), timeout=2.0)
 
@@ -105,19 +99,18 @@ async def capture_face(request:Request, current_user: dict = Depends(authenticat
             return JSONResponse(content={"status": "no_face"})
 
     except HTTPException as e:
-        log_event("error", f"HTTP error in capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}", request)
         raise   
     except asyncio.TimeoutError as e:
-        log_event("error", f"Frame capture timed out in capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}", request)
+        log_event("error", f"Frame capture timed out in capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_TIMEOUT"].format(error="Face capture failed"))
     except cv2.error as e:
-        log_event("error", f"OpenCV error in capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}", request)
+        log_event("error", f"OpenCV error in capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_OPEN_CV"])
     except ValueError as e:
-        log_event("error", f"Face detection failed at capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}", request)
+        log_event("error", f"Face detection failed at capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=400, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_INVALID_IMAGE"])
     except Exception as e:
-        log_event("critical", f"Unexpected error in capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}", request)
+        log_event("critical", f"Unexpected error in capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_GENERAL_EXCEPTION"])
 
 router_register_face = APIRouter()
@@ -135,11 +128,11 @@ async def register_face(user:FaceName, request:Request, current_user: dict = Dep
         # Validate encoding from the request
         encoding = np.array(user.encoding) if user.encoding else None
         if encoding is None:
-            log_event("error", "No face encoding found in global state during registration attempt.", request)
+            log_event("error", f"No face encoding recived from the frontend during registration attempt (register_face function in register_face.py). admin status:{is_admin}, user:{user_id}", request)
             raise HTTPException(status_code=400, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_NO_FACE"])
         if not isinstance(encoding, np.ndarray) or encoding.shape[0] != 128:
-            log_event("error", "Invalid face encoding or shape during registration attempt.", request)
-            raise HTTPException(status_code=400, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_INVALID_INPUT"])
+            log_event("error", f"Invalid face encoding or shape during registration attempt. (register_face function in register_face.py). admin status:{is_admin}, user:{user_id}", request)
+            raise HTTPException(status_code=422, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_INVALID_INPUT"])
         await asyncio.wait_for(asyncio.to_thread(save_face_to_db, user.first_name, user.last_name, encoding), timeout=5.0)
         log_event("info", f"User face registered, register_face function: {user.first_name} {user.last_name} (register_face.py). admin status:{is_admin}, user:{user_id}", request)
         return JSONResponse(content={
@@ -147,21 +140,39 @@ async def register_face(user:FaceName, request:Request, current_user: dict = Dep
             "message": f"Face registered: {user.first_name} {user.last_name}",})        
     
     except HTTPException as e:
-        log_event("error", f"HTTP error in register_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}", request)
         raise
     except asyncio.TimeoutError as e:
-        log_event("error", f"Registering face timedout in register_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}", request)
+        log_event("error", f"Registering face timedout in register_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_TIMEOUT"].format(error="Registering Face failed"))
     except sqlite3.Error as e:
-        log_event("critical", f"Database error in register_face (register_face.py): {e}. admin status:{is_admin}, user:{user_id}", request)
+        log_event("critical", f"Database error in save_face_to_db function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_DATABASE"])
     except Exception as e:
-        log_event("critical", f"Unexpected error in register_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}", request)
+        log_event("critical", f"Unexpected error in register_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_GENERAL_EXCEPTION"])
-        
+# ----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
+def delete_DB_check(face_id):
+    """ Checks if the face ID exists, if it doesnt then it sends false to the upper function, 
+    if exists it deletes the face and returns True to avoid the exception """
+    try:
+        with sqlite3.connect(SC_DB_PATH) as conn:
+            cursor = conn.cursor()
+            # Check if the ID exists, if not return the None to the upper function
+            cursor.execute('SELECT id FROM registered_faces WHERE id = ?', (face_id,))
+            result = cursor.fetchone()
+            if not result:
+                return False
+        # If exists, Delete the face record
+            cursor.execute('DELETE FROM registered_faces WHERE id = ?', (face_id,))
+            conn.commit()
+            return True
+    except sqlite3.Error as e:
+        raise
+
 router_delete_face = APIRouter()
 @router_delete_face.delete("/delete_face/{face_id}")
-def delete_face(request:Request,current_user: dict = Depends(authenticate_user),
+async def delete_face(request:Request,current_user: dict = Depends(authenticate_user),
                 face_id:int = Path(..., title="Face ID", description="ID must be a positive integer", ge=1)):
     """API endpoint to delete a registered face using its ID (Admin)."""
     try:
@@ -170,59 +181,61 @@ def delete_face(request:Request,current_user: dict = Depends(authenticate_user),
         if not is_admin:
             log_event("error", f"User accessed delete_face function (register_face.py), not an admin. admin status:{is_admin} user:{user_id}", request)
             raise HTTPException(status_code=403, detail=HTTP_ERROR_DETAILS["FORBIDDEN_ADMIN_ONLY"])
-        
-        with sqlite3.connect(SC_DB_PATH) as conn:
-            cursor = conn.cursor()
-            # Check if the ID exists
-            cursor.execute('SELECT id FROM registered_faces WHERE id = ?', (face_id,))
-            result = cursor.fetchone()
 
-            if not result:
-                log_event("error", f"User accessed delete_face function (register_face.py), no face found with ID {face_id}. admin status:{is_admin} user:{user_id}", request)
-                raise HTTPException(status_code=404, detail=HTTP_ERROR_DETAILS["NOT_FOUND_FACE_ID"].format(face_id=face_id))
-        # Delete the face record
-            cursor.execute('DELETE FROM registered_faces WHERE id = ?', (face_id,))
-            conn.commit()
+        result = await asyncio.to_thread(delete_DB_check, face_id)
+        if not result:
+            log_event("error", f"User accessed delete_face function (register_face.py), no face found with ID {face_id}. admin status:{is_admin} user:{user_id}", request)
+            raise HTTPException(status_code=404, detail=HTTP_ERROR_DETAILS["NOT_FOUND_FACE_ID"].format(face_id=face_id))
         log_event("warning", f"User accessed delete_face function (register_face.py), face with ID {face_id} deleted. admin status:{is_admin} user:{user_id}", request)
         return {"status": "success", "message": f"Face with ID {face_id} deleted"}
     except HTTPException as e:
-        log_event("error", f"HTTP error in delete_face function (register_face.py): {e} (register_face.py). admin status:{is_admin} user:{user_id}", request)
         raise
     except sqlite3.Error as e:
-        log_event("critical", f"Database error in delete_face: {e} (register_face.py). admin status:{is_admin} user:{user_id}", request)
+        log_event("critical", f"Database error in delete_DB_check function: {e} (register_face.py). admin status:{is_admin} user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_DATABASE"])
     except Exception as e:
-        log_event("critical", f"Unexpected error in delete_face: {e} (register_face.py). admin status:{is_admin} user:{user_id}", request)
+        log_event("critical", f"Unexpected error in delete_face: {e} (register_face.py). admin status:{is_admin} user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_GENERAL_EXCEPTION"])
-        
-router_faces_list = APIRouter()
-@router_faces_list.get("/list_faces")
-def get_registered_faces(request:Request,current_user: dict = Depends(authenticate_user)):
-    """Retrieve a list of all registered faces from the database."""
+# ----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
+def face_lists_DB_fetch():
+    """ Fetchs the list of registered faces and sends them to the upper function, 
+    if list empty returns Empty list[] and skips the If """
     try:
-        is_admin = current_user.get("is_admin")
-        user_id = current_user.get("user_id")
-        
         with sqlite3.connect(SC_DB_PATH) as conn:
             cursor = conn.cursor()
             # Fetch all registered faces (excluding encodings and encoding_hash)
             cursor.execute('SELECT id, first_name, last_name, created_at FROM registered_faces')
-            faces = cursor.fetchall()
+            return cursor.fetchall()
+    except sqlite3.Error as e:
+        raise
 
+router_faces_list = APIRouter()
+@router_faces_list.get("/list_faces")
+async def get_registered_faces(request:Request,current_user: dict = Depends(authenticate_user)):
+    """Retrieve a list of all registered faces from the database."""
+    try:
+        is_admin = current_user.get("is_admin")
+        user_id = current_user.get("user_id")
+        if not is_admin:
+            log_event("error", f"User accessed get_registered_faces function (register_face.py), not an admin. admin status:{is_admin} user:{user_id}", request)
+            raise HTTPException(status_code=403, detail=HTTP_ERROR_DETAILS["FORBIDDEN_ADMIN_ONLY"])
+
+        faces = await asyncio.to_thread(face_lists_DB_fetch)
         if not faces:
             log_event("info", f"User accessed get_registered_faces function (register_face.py), no faces registered. admin status:{is_admin} user:{user_id}", request)
             return {"status": "success", "message": "No faces registered", "faces": []}
+
         # Convert to list of dictionaries
-        face_list = [
-            {"id": face[0], "first_name": face[1], "last_name": face[2], "created_at": face[3]}
-            for face in faces]
+        face_list = [ {"id": face[0], "first_name": face[1], "last_name": face[2], "created_at": face[3]} for face in faces]
         log_event("info", f"User accessed get_registered_faces function (register_face.py). admin status:{is_admin} user:{user_id}", request)
         return {"status": "success", "faces": face_list}
+
     except sqlite3.Error as e:
-        log_event("critical", f"Database error in get_registered_faces: {e} (register_face.py). admin status:{is_admin} user:{user_id}", request)
+        log_event("critical", f"Database error in face_lists_DB_fetch: {e} (register_face.py). admin status:{is_admin} user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_DATABASE"])
     except Exception as e:
-        log_event("critical", f"Unexpected error in get_registered_faces: {e} (register_face.py). admin status:{is_admin} user:{user_id}", request)
+        log_event("critical", f"Unexpected error in get_registered_faces: {e} (register_face.py). admin status:{is_admin} user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_GENERAL_EXCEPTION"])
     
 # ----------------------POSSIBLE IMPROVEMENTS---------------------- 

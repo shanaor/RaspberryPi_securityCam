@@ -82,7 +82,12 @@ def check_if_active(user_id):
                 
 # Authentication decorator
 async def authenticate_user(request: Request):
-    """Function to authenticate users and admins, redirecting on failure."""    
+    """Function to authenticate users and admins, redirecting on failure.
+    user name initialized to unkown to prevent error in case that jwt raises an error before user name is parsed.
+    Checks if Token exists, if it does if it is expired or valid, and if the user is active. 
+    in error it would raise HTTPexception to trigger site redirection to login page.""" 
+    
+    user_id = "unknown (token parsing failed)"
     try:        
         token = request.cookies.get("auth_token")
         if not token:
@@ -96,10 +101,10 @@ async def authenticate_user(request: Request):
         result = await asyncio.to_thread(check_if_active, user_id)
         # check if user got deactivated while using his token, And edge cases of invalid status (result -> None), like user that was deleted while still having valid token
         if result is None and is_admin == False:
-            log_event("error", f"Unautherized access by just deleted user (authenticate_user function ,login.py) tried by {user_id}: {e}", request)
+            log_event("error", f"Unautherized access by just deleted user (authenticate_user function ,login.py) tried by {user_id}", request)
             raise HTTPException(status_code=401, detail=HTTP_ERROR_DETAILS["AUTH_REQUIRED"])
         if result and result[0] == 0:
-            log_event("error", f"Unautherized access by just Deactivated (authenticate_user function ,login.py) tried by {user_id}: {e}", request)
+            log_event("error", f"Unautherized access by just Deactivated (authenticate_user function ,login.py) tried by {user_id}", request)
             raise HTTPException(status_code=403, detail=HTTP_ERROR_DETAILS["DISABLED_USER"])
         return {"is_admin": is_admin, "user_id": user_id}
     except HTTPException as e:

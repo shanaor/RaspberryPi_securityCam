@@ -25,9 +25,7 @@ def compute_encoding_hash(encoding): # The encoding variable here is a local var
     try:
         # Multiply all elements together for fast lookup (---> np.prod(encoding) <---)
         return float(min(max(np.prod(encoding), -1e308), 1e308)) # Clamp the value into the boundries computer allow to avoid overflow and reset of the hash  
-    
     except OverflowError as e:
-        log_event("error", f"Overflow error in compute_encoding_hash function (register_face.py): {e}")
         raise
 
 def save_face_to_db(first_name, last_name, encoding): # The encoding variable here is a local variable using the global value on par with python rules.
@@ -100,15 +98,15 @@ async def capture_face(request:Request, current_user: dict = Depends(authenticat
 
     except HTTPException as e:
         raise   
+    except ValueError as e:
+        log_event("error", f"Face detection failed at capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
+        raise HTTPException(status_code=400, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_INVALID_IMAGE"])
     except asyncio.TimeoutError as e:
         log_event("error", f"Frame capture timed out in capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_TIMEOUT"].format(error="Face capture failed"))
     except cv2.error as e:
         log_event("error", f"OpenCV error in capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_OPEN_CV"])
-    except ValueError as e:
-        log_event("error", f"Face detection failed at capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
-        raise HTTPException(status_code=400, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_INVALID_IMAGE"])
     except Exception as e:
         log_event("critical", f"Unexpected error in capture_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_GENERAL_EXCEPTION"])
@@ -141,6 +139,9 @@ async def register_face(user:FaceName, request:Request, current_user: dict = Dep
     
     except HTTPException as e:
         raise
+    except OverflowError as e:
+        log_event("error", f"Overflow error in compute_encoding_hash function (register_face.py): {e}")
+        raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_GENERAL_EXCEPTION"])
     except asyncio.TimeoutError as e:
         log_event("error", f"Registering face timedout in register_face function (register_face.py): {e}. admin status:{is_admin}, user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_TIMEOUT"].format(error="Registering Face failed"))

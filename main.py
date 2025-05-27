@@ -1,7 +1,7 @@
 
 from python_standalones.day_night import monitor_brightness
 from python_standalones.logger import log_event
-from python_standalones.automatic_camera_functions import recognize_face,camera_feed_function, cleanup as cleanup_camera_resources
+from python_standalones.automatic_camera_functions import Global_cam_var, recognize_face,camera_feed_function, cleanup as cleanup_camera_resources, video_writer_function
 from config.config import VIDEO_FOLDER, LOG_DIR, SC_DB_PATH,USER_LOG_DB_PATH
 
 from login import router_login_and_generate_token
@@ -10,7 +10,7 @@ from users_and_logs_operations import ( router_register_user, router_delete_user
                                         router_deactivate_user, router_activate_user,
                                         router_user_list, router_get_event_logs)
 from video_operations import  router_videos_list ,router_video_download ,router_delete_video
-from register_face import router_register_face, router_delete_face, router_faces_list
+from register_face import router_capture_face, router_register_face, router_delete_face, router_faces_list
 
 from DB.users_logs_DB import initialize_user_and_logs_database
 from DB.face_DB import initialize_face_db
@@ -67,9 +67,20 @@ async def startup_event():
 # -----------------------SHUTDOWN----------------------------------------
 @app.on_event("shutdown")
 async def shutdown_event():
-    log_event("info", "App shutting down, calling camera cleanup...")
+    log_event("info", "App shutting down, closing threads and calling camera cleanup...")
     try:
-        # Directly await your imported async cleanup function
+        Global_cam_var.loop_flag = False
+        await asyncio.sleep(1) #Giving the threads alittle time to shutdown to prevent a hiccup
+        threads_to_join = [camera_thread, recognition_thread, video_writer_thread, brightness_thread]
+        for thread in threads_to_join:
+            if thread is not None and thread.is_alive():
+                log_event("info", f"Shutdown: Attempting to join(await) {thread.name} shutdown... (main.py)")
+            await asyncio.to_thread(thread.join, timeout=15.0) # e.g., 15-second timeout, to let the brightness thread finish its 10 second loop (the except in brightness has 5 seconds sleep, thats why i choose 15 seconds)
+            if thread.is_alive():
+                log_event("warning", f"Shutdown: Thread {thread.name} did not exit cleanly after timeout (main.py).")
+            else:
+                log_event("info", f"Shutdown: Thread {thread.name} joined successfully (main.py).")
+        # Directly await imported async cleanup function
         await cleanup_camera_resources()
         log_event("info", "Shutdown process of Camera cleanup function finished (main.py).")
     except Exception as e:
@@ -79,6 +90,7 @@ async def shutdown_event():
 retry_camera = 0
 retry_recognition = 0
 retry_brightness = 0 
+retry_videp_writer = 0
 
 # Start camera threads with retry logic
 while retry_camera < 5:
@@ -110,6 +122,7 @@ if retry_recognition == 5:
     log_event("critical", "Face recognition Thread (main.py) start failed after 5 attempts. Exiting program.")
     exit(1)  # Exit program and Prevents running without face recognition
 time.sleep(1)
+
 # start nightvision check thread after 1 second delay (to prevent unecessry failure)
 while retry_brightness < 5:
     try:
@@ -123,6 +136,20 @@ while retry_brightness < 5:
         time.sleep(5)
 if retry_brightness == 5:
     log_event("critical", "Monitor_brightness thread (main.py) start failed after 5 attempts. Continuing program, PLEASE FIX.")
+
+# starting video writing thread
+while retry_videp_writer < 5:
+    try:
+        video_writer_thread = threading.Thread(target=video_writer_function, daemon=True)
+        video_writer_thread.start()
+        log_event("info", "video_writer_function thread started (main.py)")
+        break  # Exit loop if successful
+    except Exception as e:
+        retry_videp_writer += 1
+        log_event("critical", f"Failed to start video_writer_function thread (main.py) (Attempt {retry_videp_writer}/5): {e}", exc_info=True)
+        time.sleep(5)
+if retry_videp_writer == 5:
+    log_event("critical", "video_writer_function thread (main.py) start failed after 5 attempts. Continuing program, PLEASE FIX.")
   
 log_event("info", "starting routers after threads (main.py)")
 app.include_router(router_login_and_generate_token)
@@ -142,6 +169,7 @@ app.include_router(router_user_list)
 # ---
 app.include_router(router_get_event_logs)
 # ---
+app.include_router(router_capture_face)
 app.include_router(router_register_face)
 app.include_router(router_delete_face)
 app.include_router(router_faces_list)

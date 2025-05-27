@@ -204,13 +204,20 @@ button.secondary:hover { background: #5a6268;}
   height: 40px;
   animation: spin 1s linear infinite;
   position: absolute; /* Positioned relative to .preview-wrapper */
-  top: 50%;
+  top: 42.5%;
   left: 50%;
   transform: translate(-50%, -50%); /* Center it */
   z-index: 10; /* Ensure it's above the image placeholder */
   display: none; /* Hidden by default */
 }
-@keyframes spin { to {transform: rotate(360deg); }} /* Simpler keyframe */
+@keyframes spin { to {transform: translate(-50%, -50%) rotate(360deg); }} /* Simpler keyframe */
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+} .shake {animation: shake 0.3s ease;}
+
 
 /* Responsive Adjustments */
 @media (max-width: 600px) {

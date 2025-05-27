@@ -34,17 +34,18 @@
     <!-- Capture Face Section -->
     <section id="capture-section">
       <h2>Register New Face</h2>
-        <label for="capture attempts">Capture attempts, 1 to 100:</label>
+        <label id="label-capture-attempts" for="capture attempts">Capture attempts, 1 to 100:</label>
           <input type="number" id="capture-attempts" value="20" min="1" max="100" step="1" placeholder="Number of attempts to try to capture face"
             title="Capture attempts must be a number between 0 and 100." required>
-        <label for="capture-interval">Capture Time loop,1000-10000. 1000 = 1 second, 10000 = 10 seconds:</label>
+        <label id="label-capture-interval" for="capture-interval">Capture Time loop,1000-10000. 1000 = 1 second, 10000 = 10 seconds:</label>
           <input type="number" id="capture-interval" value="3000" min="1000" max="10000" step="1" placeholder="Time in seconds between Camera face capture attempts"
             title="Time between camera trying to capture face. must be a number between 1000 (1 second) and 10000 (10 seconds)." required>
         <button id="start-capture-btn">Start Face Capture</button>
         <button class="redbtn" id="cancel-capture-btn">Cancel Capture</button>
         <div id="capture-status-message"></div>
-        <div class="spinner" id="capture-spinner"></div>
         <div class="preview-wrapper">
+            <h3 id="cpturedface"> Captured Face Preview</h3>
+            <div class="spinner" id="capture-spinner"></div>
             <img id="face-preview-img" alt="Face Preview">
         </div>
     </section>

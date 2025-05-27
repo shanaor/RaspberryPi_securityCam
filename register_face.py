@@ -37,11 +37,18 @@ def save_face_to_db(first_name, last_name, encoding): # The encoding variable he
         
         with sqlite3.connect(SC_DB_PATH) as conn:
             cursor = conn.cursor()
+            
+                        # Check for existing name
             cursor.execute('''
-                INSERT INTO registered_faces (first_name, last_name, encoding, encoding_hash) 
-                VALUES (?, ?, ?, ?)
-            ''', (first_name, last_name, encoding.tobytes(), encoding_hash))
+                SELECT 1 FROM registered_faces WHERE first_name = ? AND last_name = ? ''', (first_name, last_name))
+            if cursor.fetchone():
+                return {"name_exist": True}
+            
+            # Insert new record
+            cursor.execute('''
+                INSERT INTO registered_faces (first_name, last_name, encoding, encoding_hash) VALUES (?, ?, ?, ?) ''', (first_name, last_name, encoding.tobytes(), encoding_hash))
             conn.commit()
+            return {"name_exist": False}
     except sqlite3.Error as e:
         raise
 # ------------------------------------------------------------
@@ -50,9 +57,13 @@ def save_face_to_db(first_name, last_name, encoding): # The encoding variable he
 router_capture_face = APIRouter()
 @router_capture_face.get("/capture_face")
 async def capture_face(request:Request, current_user: dict = Depends(authenticate_user)):
-    """Captures a face from the current frame and returns it to the frontend for preview (Admin)."""
+    """Captures a face from the current frame and returns it to the frontend for preview.
+    Get the frame from the camera (from standalone folder) and then get the first face encoding result, put a rectangle on it
+     to show the user what would be saved and send it to the front, if the user approves, it sends it back the the next API point for processing.
+     Args: 
+        frame_local: frame data captured from the camera for face processing"""
     frame_local = None
-    
+
     try:
         is_admin = current_user.get("is_admin")
         user_id = current_user.get("user_id")
@@ -61,8 +72,9 @@ async def capture_face(request:Request, current_user: dict = Depends(authenticat
             raise HTTPException(status_code=403, detail=HTTP_ERROR_DETAILS["FORBIDDEN_ADMIN_ONLY"])
         
         frame_local = await asyncio.wait_for(asyncio.to_thread(get_frame_safe), timeout=5.0) # prevent unresponsiveness of the camera if it gets stuck
+
         if frame_local is None:
-            log_event("error", f"User accessed capture_face function (register_face.py), camera failed. admin status:{is_admin}, user:{user_id}",request)
+            log_event("error", f"User accessed capture_face function (line 77) (register_face.py), camera failed. admin status:{is_admin}, user:{user_id}",request)
             raise HTTPException(status_code=400, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_CAMERA_FAIL"])
 
         # Convert frame to RGB for face recognition
@@ -70,14 +82,14 @@ async def capture_face(request:Request, current_user: dict = Depends(authenticat
         # Detect faces
         face_locations = await asyncio.wait_for(asyncio.to_thread(face_recognition.face_locations,rgb_frame), timeout=3.0)
         face_encodings = await asyncio.wait_for(asyncio.to_thread(face_recognition.face_encodings,rgb_frame, face_locations), timeout=3.0)
-        
+
         # Check if any faces were detected
         if face_encodings: 
             log_event("info", "User accessed capture_face function (register_face.py), face detected", request)
             # Process the first face
             location, encoding = face_locations[0], face_encodings[0]
             if not isinstance(encoding, np.ndarray) or encoding.shape[0] != 128:
-                log_event("error", "Invalid face encoding shape during registration attempt.", request, exc_info=True)
+                log_event("error", "Invalid face encoding shape during registration attempt (line 92) (register_face.py).", request)
                 raise HTTPException(status_code=422, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_INVALID_INPUT"])
             top, right, bottom, left = location
             await asyncio.wait_for(asyncio.to_thread(cv2.rectangle, frame_local, (left, top), (right, bottom), (0, 255, 0), 2), timeout=2.0)
@@ -115,24 +127,30 @@ router_register_face = APIRouter()
 @router_register_face.post("/register_face")
 async def register_face(user:FaceName, request:Request, current_user: dict = Depends(authenticate_user)):
     """Registers the captured face encoding that was captured by capture_face function and then sent by the frontend with name.
-    [FaceName] class is used to validate the input data. and include encoding as a list of floats. (Admin)"""
+    [FaceName] class is used to validate the input data. And include encoding as a list of floats and saved in the Database as a BLOB.
+    + a hash encoding to use as a key for fast lookup in the Database"""
     try:
         is_admin = current_user.get("is_admin")
         user_id = current_user.get("user_id")
         if not is_admin:
             log_event("error", f"User accessed register_face function (register_face.py), not an admin. admin status:{is_admin}, user:{user_id}", request)
             raise HTTPException(status_code=403, detail=HTTP_ERROR_DETAILS["FORBIDDEN_ADMIN_ONLY"])
-            
+    
         # Validate encoding from the request
         encoding = np.array(user.encoding) if user.encoding else None
         if encoding is None:
-            log_event("error", f"No face encoding recived from the frontend during registration attempt (register_face function in register_face.py). admin status:{is_admin}, user:{user_id}", request)
+            log_event("error", f"No face encoding recived from the frontend during registration attempt (line 142) (register_face function in register_face.py). admin status:{is_admin}, user:{user_id}", request)
             raise HTTPException(status_code=400, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_NO_FACE"])
         if not isinstance(encoding, np.ndarray) or encoding.shape[0] != 128:
-            log_event("error", f"Invalid face encoding or shape during registration attempt. (register_face function in register_face.py). admin status:{is_admin}, user:{user_id}", request)
+            log_event("error", f"Invalid face encoding or shape during registration attempt (line 145). (register_face function in register_face.py). admin status:{is_admin}, user:{user_id}", request)
             raise HTTPException(status_code=422, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_INVALID_INPUT"])
-        await asyncio.wait_for(asyncio.to_thread(save_face_to_db, user.first_name, user.last_name, encoding), timeout=5.0)
-        log_event("info", f"User face registered, register_face function: {user.first_name} {user.last_name} (register_face.py). admin status:{is_admin}, user:{user_id}", request)
+
+        result = await asyncio.wait_for(asyncio.to_thread(save_face_to_db, user.first_name, user.last_name, encoding), timeout=5.0)
+        if result["name_exist"] == True:
+            log_event("error", f"register_face function (line 150) (register_face.py), User face registration failed, name: {user.first_name} {user.last_name} already exists in the database. admin status:{is_admin}, user:{user_id}", request)
+            raise HTTPException(status_code=400, detail=HTTP_ERROR_DETAILS["BAD_REQUEST_NAME_EXIST"].format(first_name=user.first_name, last_name=user.last_name))
+
+        log_event("info", f"register_face function (register_face.py), User face registered: {user.first_name} {user.last_name}, admin status:{is_admin}, user:{user_id}", request)
         return JSONResponse(content={
             "status": "success",
             "message": f"Face registered: {user.first_name} {user.last_name}",})        
@@ -160,14 +178,15 @@ def delete_DB_check(face_id):
         with sqlite3.connect(SC_DB_PATH) as conn:
             cursor = conn.cursor()
             # Check if the ID exists, if not return the None to the upper function
-            cursor.execute('SELECT id FROM registered_faces WHERE id = ?', (face_id,))
+            cursor.execute('SELECT first_name, last_name FROM registered_faces WHERE id = ?', (face_id,))
             result = cursor.fetchone()
             if not result:
-                return False
+                return {"ID_exist": False}
+
         # If exists, Delete the face record
             cursor.execute('DELETE FROM registered_faces WHERE id = ?', (face_id,))
             conn.commit()
-            return True
+            return {"first_name":result[0],"last_name":result[1], "ID_exist": True}
     except sqlite3.Error as e:
         raise
 
@@ -175,7 +194,7 @@ router_delete_face = APIRouter()
 @router_delete_face.delete("/delete_face/{face_id}")
 async def delete_face(request:Request,current_user: dict = Depends(authenticate_user),
                 face_id:int = Path(..., title="Face ID", description="ID must be a positive integer", ge=1)):
-    """API endpoint to delete a registered face using its ID (Admin)."""
+    """API endpoint to delete a registered face using its ID."""
     try:
         is_admin = current_user.get("is_admin")
         user_id = current_user.get("user_id")
@@ -184,11 +203,12 @@ async def delete_face(request:Request,current_user: dict = Depends(authenticate_
             raise HTTPException(status_code=403, detail=HTTP_ERROR_DETAILS["FORBIDDEN_ADMIN_ONLY"])
 
         result = await asyncio.to_thread(delete_DB_check, face_id)
-        if not result:
+        if result["ID_exist"] == False:
             log_event("error", f"User accessed delete_face function (register_face.py), no face found with ID {face_id}. admin status:{is_admin} user:{user_id}", request)
             raise HTTPException(status_code=404, detail=HTTP_ERROR_DETAILS["NOT_FOUND_FACE_ID"].format(face_id=face_id))
-        log_event("warning", f"User accessed delete_face function (register_face.py), face with ID {face_id} deleted. admin status:{is_admin} user:{user_id}", request)
-        return {"status": "success", "message": f"Face with ID {face_id} deleted"}
+        first_name,last_name = result["first_name"], result["last_name"]
+        log_event("warning", f"User accessed delete_face function (register_face.py), face named: {first_name} {last_name} , ID: {face_id} deleted. admin status:{is_admin} user:{user_id}", request)
+        return {"status": "success", "message": f"Face named: {first_name} {last_name} , ID: {face_id} deleted"}
     except HTTPException as e:
         raise
     except sqlite3.Error as e:
@@ -229,9 +249,10 @@ async def get_registered_faces(request:Request,current_user: dict = Depends(auth
 
         # Convert to list of dictionaries
         face_list = [ {"id": face[0], "first_name": face[1], "last_name": face[2], "created_at": face[3]} for face in faces]
-        log_event("info", f"User accessed get_registered_faces function (register_face.py). admin status:{is_admin} user:{user_id}", request)
+        log_event("info", f"User accessed get_registered_faces function and got the lists of faces (register_face.py). admin status:{is_admin} user:{user_id}", request)
         return {"status": "success", "faces": face_list}
-
+    except HTTPException as e:
+        raise
     except sqlite3.Error as e:
         log_event("critical", f"Database error in face_lists_DB_fetch: {e} (register_face.py). admin status:{is_admin} user:{user_id}",request, exc_info=True)
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_DATABASE"])
@@ -240,9 +261,7 @@ async def get_registered_faces(request:Request,current_user: dict = Depends(auth
         raise HTTPException(status_code=500, detail=HTTP_ERROR_DETAILS["SERVER_ERROR_GENERAL_EXCEPTION"])
     
 # ----------------------POSSIBLE IMPROVEMENTS---------------------- 
-# - Add a feature to update the face encoding if the same person is registered again
-# - Add a feature to alert the user if the face is already registered
-# - Add a feature to infrom the user about already registered name 
-# - Add a feature to check if the face is already registered before saving
+# - Add a feature to update the face encoding if the same person is registering again or if he changed his face (e.g. beard, glasses, etc.) \ allow a user to have multiple encodings\looks
+# - Add a feature to check and alert the user if the face is already registered before saving
 # - Add a feature to handle multiple faces in a single frame (multi registering process)
 # - Add a feature to handle different camera resolutions

@@ -63,7 +63,7 @@ document.getElementById('reg-password').addEventListener('input', () => {
 
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    registerMsg.classList.remove("success-message"); // Remove success message class to allow black text "processing..." message
+    registerMsg.classList.remove("success-message");
     registerError.textContent = '';
     registerMsg.textContent = 'Processing...';
     registerBtn.disabled = true;
@@ -76,7 +76,7 @@ registerForm.addEventListener('submit', async (e) => {
       const res = await axios.post('/register_user/', { username, password });
       registerMsg.classList.add("success-message");
       registerMsg.textContent = res.data.message || 'User registered successfully!';
-      setTimeout(async () => {registerForm.reset(); registerMsg.textContent =''; await fetchUsers(); }, 3000); // 3-second delay
+      setTimeout(async () => {registerForm.reset(); registerMsg.textContent =''; registerMsg.classList.remove("success-message"); await fetchUsers(); }, 3000); // 3-second delay
       registerBtn.disabled = false;} 
   catch (error_register) {registerMsg.textContent = ''; handleError_textcontext(error_register,registerError,"to Register user",registerBtn,"Registering user");}
     });
@@ -106,17 +106,17 @@ async function fetchUsers() {
 
         deleteBtn.onclick = async () => {
           usersError.textContent = ''; // Clear any previous error messages
-          if (confirm(`Are you sure you want to delete user ${id}?`)) {
+          if (confirm(`Are you sure you want to delete User: ${username}, ID: ${id}?`)) {
                 deleteBtn.disabled = true; // Disable the button to prevent harrasing the backend
                 usersMsg.textContent = 'Processing...';
               try {
                 await axios.delete(`/delete/${id}/`);
-                alert(`User ${id} deleted`);
+                alert(`User: ${username}, ID: ${id} deleted`);
                 usersMsg.textContent = '';
                 deleteBtn.disabled = false; // Re-enable button after deletion
                 await fetchUsers();} 
               catch (error_delete) {usersMsg.textContent=''; handleError_textcontext(error_delete,usersError,"to delete user",deleteBtn,'Deleting user');}} 
-          else {usersMsg.textContent=''; alert(`Deletion of user ${id} was cancelled.`); deleteBtn.disabled = false;} // Re-enable button if deletion is cancelled
+          else {usersMsg.textContent=''; alert(`Deletion of User: ${username}, ID: ${id} was cancelled.`); deleteBtn.disabled = false;} // Re-enable button if deletion is cancelled
         };
         
         // Activate Button
@@ -132,9 +132,8 @@ async function fetchUsers() {
         try {
           await axios.put(`/activate/${id}/`);
           activeMessage.classList.add("success-message");
-          activeMessage.textContent = `User ${id} activated`;
-          activeMessage.classList.remove("success-message");
-          setTimeout( async () => {activeMessage.textContent = ''; await fetchUsers();}, 3000); // 3-second delay
+          activeMessage.textContent = `User: ${username}, ID: ${id} activated`;
+          setTimeout( async () => {activeMessage.textContent = ''; activeMessage.classList.remove("success-message"); await fetchUsers();}, 3000); // 3-second delay
           activateBtn.disabled = false;} 
         catch (error_activate) {activeMessage.textContent = ''; handleError_textcontext(error_activate,activeError,"to activate user",activateBtn,'Activating user');}
       };
@@ -154,9 +153,8 @@ async function fetchUsers() {
         try {
           await axios.put(`/deactivate/${id}/`);
           deactivateMessage.classList.add("success-message");
-          deactivateMessage.textContent = `User ${id} deactivated`;
-          deactivateMessage.classList.remove("success-message");
-          setTimeout( async () => {deactivateMessage.textContent = ``; await fetchUsers();}, 3000); // 3-second delay      
+          deactivateMessage.textContent = `User: ${username}, ID: ${id} deactivated`;
+          setTimeout( async () => {deactivateMessage.textContent = ``; deactivateMessage.classList.remove("success-message"); await fetchUsers();}, 3000); // 3-second delay      
           deactivateBtn.disabled = false;} 
         catch (error_deactivate) {deactivateMessage.textContent = ``; handleError_textcontext(error_deactivate,deactivateError,"to deactivate user",deactivateBtn,'Deactivating user');}
         };
@@ -180,6 +178,7 @@ const logFetchBtn = document.getElementById('logfetch');
 logsForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   logFetchBtn.disabled = true;
+  logsError.innerHTML = "";
   logsListEl.innerHTML = 'Loading...';
   const day = document.getElementById('log-day').value;
   const month = document.getElementById('log-month').value;
@@ -222,7 +221,7 @@ logsForm.addEventListener('submit', async (e) => {
           
           const timeSpan = document.createElement('span');
           timeSpan.className = 'log-timestamp';
-          const formattedTimestamp = new Date(timestamp).toLocaleString();
+          const formattedTimestamp = new Date(timestamp).toLocaleString('en-GB');
           timeSpan.textContent = `Timestamp: ${formattedTimestamp}`;
           
           li.append(idSpan, eventSpan, descSpan, timeSpan);

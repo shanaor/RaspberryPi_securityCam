@@ -2,7 +2,8 @@ import axios from 'https://esm.sh/axios';
 axios.defaults.withCredentials = true;
 
 // CONFIG
-// Function to handle error messages and site redirection
+// Function to handle error messages and site redirection,
+//  not getting body content, due to using only the HEAD to get status
 function handleInitialError(error) {
     spinner.style.display = 'none'; // Hide the spinner
     //refreshBtn.disabled = false; // NOT ENABLING THE BUTTON --- because i want to force the user to refresh the page to start new server connection
@@ -12,10 +13,11 @@ function handleInitialError(error) {
     console.error('Error in livefeed.js:', error); // Log the error to the console
 
     if (error.response) { const status = error.response?.status;
-        if (status === 401) {alert('Unauthorized. Redirecting to login...'); window.location.href = '/Login.html';} 
-        else if (status === 404) {statusMessage.textContent = 'Live feed not available. Click Refresh page to try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)';} // Check what status logs here
+        if (status === 401) {alert("Unauthorized. Redirecting to login..."); window.location.href = '/Login.html';}
+        else if (status === 403) {alert("You were disabled from the system. hash it out?"); window.location.href = '/Login.html';} 
+        else if (status === 404) {statusMessage.textContent = 'Live feed not available. Click Refresh page to try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)';}
         else if (status === 500) {statusMessage.textContent = 'Server error. Try again later or contact support. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)';}
-        else {statusMessage.textContent = `Error: ${status}. Click Refresh page to try again if persists tell support. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)`;}} // Check what status logs here 
+        else {statusMessage.textContent = `Error: ${status}. Click Refresh page to try again if persists tell support. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)`;}} 
     else {statusMessage.textContent = 'Network error. Click Refresh page to try again. (press CTRL-Shift-R for hard refresh if regular refresh doesnt work)';} } // Handle network errors
 
 // ------------------------------------------------------------------

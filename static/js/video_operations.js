@@ -5,6 +5,7 @@ axios.defaults.withCredentials = true;
 // Function to handle error messages and site redirection
 function handleError_textcontext(error_var,htmltext,failed_action,del_flag,button,errormsg) {    
    // check if there is an error response from the server
+     htmltext.style.color = 'red';
     const status = error_var.response?.status;
     const detail = error_var.response?.data?.detail;
     console.error(`error in video_operations.js while ${errormsg} :`,error_var);
@@ -25,7 +26,7 @@ function handleError_textcontext(error_var,htmltext,failed_action,del_flag,butto
         if      (status === 400) {htmltext.textContent = `${detail}`; button.disabled = false;} // Re-enable button after 400 error
         else if (status === 401) {alert(`${detail}`); window.location.href = '/Login.html';} // Redirect to login to unauthurized users
         else if (status === 403) {alert(`${detail}`); window.location.href = '/Livefeed.html';} // Redirect to livefeed to unauthurized action, to penalize bad behavior
-        else if (status === 404) {htmltext.textContent = `${detail}`; button.disabled = false;} // Re-enable button after 404 error
+        else if (status === 404) {htmltext.style.color = 'green'; htmltext.textContent = `${detail}`; button.disabled = false;} // Re-enable button after 404 error
         else if (status === 409) {htmltext.textContent = `${detail}`; button.disabled = false;}
         else if (status === 500) {htmltext.textContent = `${detail}`;}
         else {htmltext.textContent = `Failed ${failed_action}. Please REFRESH page and try again.`;}
@@ -40,6 +41,7 @@ const refreshBtn = document.getElementById('refresh');
 const notifier = document.getElementById("notifier");
 
 async function fetchVideos() {
+    notifier.style.color = 'black';
     notifier.textContent = 'Loading videos...';
     refreshBtn.disabled = true;
   try {

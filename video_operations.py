@@ -14,7 +14,10 @@ THEY ARE SUPPOSED TO BE FAST AND FUNCITONING WELL"""
 router_videos_list = APIRouter()
 @router_videos_list.get("/videos_list/", response_model=List[str])
 def list_videos(request:Request,current_user: dict = Depends(authenticate_user)):
-    """List all available video files (Users + Admin)."""
+    """List all available video files sorted by modification time (newest first) (Users + Admin). 
+    Parses the token to get user information for logging. checks if video folder exists (part of defensive coding method),
+    creates it if it doesn't, and raises a 404 error if the folder cannot be accessed or created.
+    Returns the list of video filenames sorted by modification time or raises a 404 error if no videos are found."""
     try:
         is_admin = current_user.get("is_admin")
         user_id = current_user.get("user_id")
@@ -22,21 +25,19 @@ def list_videos(request:Request,current_user: dict = Depends(authenticate_user))
         if not os.path.exists(VIDEO_FOLDER):
             os.makedirs(f"{VIDEO_FOLDER}", exist_ok=True)
             if not os.path.exists(VIDEO_FOLDER):
-                log_event("critical", f"User accessed /videos_list, No recordings folder found (video_operations.py), accessed by admin status:{is_admin}, user:{user_id}",request) 
+                log_event("critical", f"User accessed /videos_list, No recordings folder found: {VIDEO_FOLDER} (video_operations.py), accessed by admin status:{is_admin}, user:{user_id}",request) 
                 raise HTTPException(status_code=404, detail=HTTP_ERROR_DETAILS["NOT_FOUND_FOLDER"])
         
-         # Get all files in the directory
-        videos = os.listdir(VIDEO_FOLDER)
-        log_event("info", f"Filtered video files: {videos}", request)
-        
-        # If to return specific file types, filtering them For example, if only video files --> adding: if file.lower().endswith(('.mp4', '.avi', '.mov', '.mkv'))
-        # videos = [file for file in all_files]
-                # For debugging, log the files found
-        # log_event("info", f"Found files in directory: {all_files}", request)
+
+        # Get all video files in the directory (filtering for .mp4 files and added other formats for flexability if i change the video writer in the future)
+        videos = [file for file in os.listdir(VIDEO_FOLDER) if os.path.isfile(os.path.join(VIDEO_FOLDER, file)) and file.lower().endswith(('.mp4', '.avi', '.mov', '.mkv'))]
+        # Sort videos by modification time, newest first
+        videos.sort(key=lambda file: os.path.getmtime(os.path.join(VIDEO_FOLDER, file)), reverse=True)
+        log_event("info", f"Found files in directory: {videos}", request)
         
         if not videos:
             log_event("error", f"User accessed /videos_list, no video was found (video_operations.py), accessed by admin status:{is_admin}, user:{user_id}",request) 
-            raise HTTPException(status_code=404, detail=HTTP_ERROR_DETAILS["NOT_FOUND_NO_VIDEOS_LIST"])
+            raise HTTPException(status_code=404, detail=HTTP_ERROR_DETAILS["NOT_FOUND_VIDEOS"])
         log_event("info", f"User accessed /videos_list, listed all videos (video_operations.py), accessed by admin status:{is_admin}, user:{user_id}",request) 
         return videos
     except HTTPException as e:
@@ -48,7 +49,9 @@ def list_videos(request:Request,current_user: dict = Depends(authenticate_user))
 router_video_download = APIRouter()
 @router_video_download.get("/videos/download/{filename}")
 def download_video(filename: str,request:Request,current_user: dict = Depends(authenticate_user)):
-    """Download a specific video (Users + Admin)."""
+    """Download a specific video (Users + Admin).
+    find the video in the folder using the the frontend list off videos using the video list API
+    help prevent wrong file name error."""
     try:
         is_admin = current_user.get("is_admin")
         user_id = current_user.get("user_id")
@@ -68,7 +71,9 @@ def download_video(filename: str,request:Request,current_user: dict = Depends(au
 router_delete_video = APIRouter()
 @router_delete_video.delete("/videos/delete/{filename}")
 def delete_video(filename: str,request:Request,current_user: dict = Depends(authenticate_user)):
-    """Delete a specific video (Admin)."""
+    """Delete a specific video (Admin only). 
+    find the video in the folder using the the frontend list off videos using the video list API
+    help prevent wrong file name error."""
     try:
         is_admin = current_user.get("is_admin")
         user_id = current_user.get("user_id")

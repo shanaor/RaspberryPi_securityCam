@@ -2,10 +2,23 @@ import axios from 'https://esm.sh/axios';
 axios.defaults.withCredentials = true;
 
 // ---------- CONFIG --------------
+// -- shake animation for error ----
+function triggerShake(element) { element.classList.add("shake");
+  setTimeout(() => element.classList.remove("shake"), 300);} // remove after animation
+
+  function setupDebouncedValidation(inputEl, labelEl, min, max, delay = 1000) {
+    let timer = null;
+  
+    inputEl.addEventListener("input", () => {clearTimeout(timer);
+    timer = setTimeout(() => {const value = parseInt(inputEl.value, 10);
+        if (isNaN(value) || value < min || value > max) {  labelEl.style.color = "red"; triggerShake(labelEl); inputEl.value = "";} 
+        else {labelEl.style.color = "";}}, delay);});}
+
 // --- Error Handler ---
 function handleError_textcontext(error_var,htmltext,failed_action,button,consolemsg) {    
   console.error(`error in register_face.js ${consolemsg} `,error_var);
-  
+  htmltext.style.color = 'red';
+
   if (error_var.response) { // check if there is an error response from the server
     const status = error_var.response?.status;
     const detail = error_var.response?.data?.detail || 'Unknown error';
@@ -15,6 +28,7 @@ function handleError_textcontext(error_var,htmltext,failed_action,button,console
     else if (status === 403) {alert(`${detail}`); window.location.href = '/Livefeed.html';} // Redirect to livefeed to unauthurized action, to penalize bad behavior
     else if (status === 404) {htmltext.textContent = `${detail}`; button.disabled = false;} // Re-enable button after 404 error 
     else if (status === 409) {htmltext.textContent = `${detail}`; button.disabled = false;}
+    else if (status === 422) {htmltext.textContent = `${detail}`; button.disabled = false;}
     else if (status === 500) {htmltext.textContent = `${detail}`; button.disabled = true;}
     else if (error_var.message){htmltext.textContent = `${error_var.message}`; button.disabled = false;} // Catch the custom "throw new error"
     else {htmltext.textContent = `Failed ${failed_action}. Please REFRESH page and try again.`; button.disabled = true;} // Handle other status codes
@@ -56,7 +70,7 @@ const cancelCaptureBtn = document.getElementById('cancel-capture-btn');
 const facePreviewImg = document.getElementById('face-preview-img');
 const captureStatusMessage = document.getElementById('capture-status-message');
 const captureSpinner = document.getElementById('capture-spinner');
-
+const CaptureText = document.getElementById('cpturedface');
 
 function stopCaptureProcess(reason, data = null,MAX_CAPTURE_ATTEMPTS) {
   console.log(`Stopping capture process. Reason: ${reason}`);
@@ -69,6 +83,7 @@ function stopCaptureProcess(reason, data = null,MAX_CAPTURE_ATTEMPTS) {
 
   switch (reason) {
     case "Success":
+        CaptureText.style.display = 'none'; // Hide text
         captureStatusMessage.textContent = data?.message || 'Face detected. If you want to register the Face to memory, enter the details below.';
         facePreviewImg.src = `data:image/jpeg;base64,${data?.image}`; facePreviewImg.style.display = 'block'; // show the image
         capturedEncoding = data?.encoding; // Store the encoding (as a list)
@@ -86,26 +101,41 @@ async function pollCaptureFace(MAX_CAPTURE_ATTEMPTS) {
 
   captureAttemptCount++;
 
-  if (captureAttemptCount > MAX_CAPTURE_ATTEMPTS) {stopCaptureProcess("Timeout",null,MAX_CAPTURE_ATTEMPTS); return;} // Stop if max attempts reached
-
   try { const res = await axios.get('/capture_face');
       if (res?.data?.status === 'success') {stopCaptureProcess("Success", res.data);} // Face found! Stop polling and process the success 
       else if (res?.data?.status === 'no_face') {captureStatusMessage.textContent =`Searching for face... (Attempt ${captureAttemptCount}/${MAX_CAPTURE_ATTEMPTS})`;} // No face found in this attempt, loop will continue via setInterval
       else {throw new Error("Process successful. But Internal Unexpected response so Face detecting stopped. Is the picture preview shows on screen?");} } // Unexpected success response format
   catch (error) {stopCaptureProcess("Error"); handleError_textcontext(error, captureStatusMessage, "capturing face", startCaptureBtn, `during Face capture attempt, number attempts completed: ${captureAttemptCount}:`); } // Stop polling on significant errors and handle the error
-  }
+  
+  if (captureAttemptCount == MAX_CAPTURE_ATTEMPTS) {stopCaptureProcess("Timeout",null,MAX_CAPTURE_ATTEMPTS); return;} // Stop after action if max attempts reached
+}
+
+const captureAttemptsInput = document.getElementById("capture-attempts");
+const captureIntervalInput = document.getElementById("capture-interval");
+const labelAttempts = document.getElementById("label-capture-attempts");
+const labelInterval = document.getElementById("label-capture-interval");
+
+// Eventlisteners to avoid malicoious inputs to the camera and server. (too sensitive. Logic is up in the CONFIG section)
+setupDebouncedValidation(captureAttemptsInput, labelAttempts, 1, 100);
+setupDebouncedValidation(captureIntervalInput, labelInterval, 1000, 10000);
 
 function startCaptureProcess() {
+  facePreviewImg.src = ''; facePreviewImg.style.display = 'none'; // clear the image (incase of a new run)
+  CaptureText.style.display = 'block'; // Show h3 text
+  captureStatusMessage.style.color = ''; // return colour to CSS default
   if (isCapturing) return; // Prevent multiple starts
-  const POLLING_INTERVAL_MS = parseInt(document.getElementById("capture-interval").value, 10) || 3000; // Default to 3 seconds and use math.floor to force integer
-  const MAX_CAPTURE_ATTEMPTS = parseInt(document.getElementById("capture-attempts").value, 10) || 20; // Default to 20 attempts and use math.floor to force integer
+
+
+
+  const POLLING_INTERVAL_MS = parseInt(captureIntervalInput.value, 10) || 3000; // Default to 3 seconds and use  parseint force integer
+  const MAX_CAPTURE_ATTEMPTS = parseInt(captureAttemptsInput.value, 10) || 20; // Default to 20 attempts and use parseint force integer
   console.log(`Polling interval: ${POLLING_INTERVAL_MS} ms, Max attempts: ${MAX_CAPTURE_ATTEMPTS}`);
   
   if(!validate_poll_configs(POLLING_INTERVAL_MS, MAX_CAPTURE_ATTEMPTS)) return; // Exit if invalid inputs
   
   console.log(`Starting capture process... Interval=${POLLING_INTERVAL_MS}ms, Max Attempts=${MAX_CAPTURE_ATTEMPTS}`);
   isCapturing = true;
-  captureAttemptCount = 0;
+  captureAttemptCount = -1; // Starting from -1 because the first round is just initializing the capture
   capturedEncoding = null; // Clear previous encoding
   
   // Reset UI
@@ -113,12 +143,12 @@ function startCaptureProcess() {
   facePreviewImg.style.display = 'none'; facePreviewImg.src = ''; // resent image element
   registerStatusMessage.textContent = ''; registerDetailsForm.style.display = 'none'; // Clear register message & Hide registration form
   startCaptureBtn.disabled = true; startCaptureBtn.style.display = 'none'; cancelCaptureBtn.style.display = 'inline-block'; // Disable and hide start capture button & Show cancel button
-  captureSpinner.style.display = 'block';
+  captureSpinner.style.display = 'inline-block';
 
   // Start polling
   pollCaptureFace(MAX_CAPTURE_ATTEMPTS); // Run first attempt immediately
   pollingIntervalId = setInterval(() => pollCaptureFace(MAX_CAPTURE_ATTEMPTS), POLLING_INTERVAL_MS); } // create an interval object that will loop pollCaptureFace function every POLLING_INTERVAL_MS milliseconds
-
+//-----
 // (listeners for face capture)
 startCaptureBtn.addEventListener('click', startCaptureProcess);
 cancelCaptureBtn.addEventListener('click', () => stopCaptureProcess("Cancelled"));
@@ -138,6 +168,8 @@ const registerStatusMessage = document.getElementById('register-status-message')
 
 registerDetailsForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  registerStatusMessage.style.color = ''; // return colour to CSS default
+  captureStatusMessage.textContent = ''; // Clear capture status message
   registerFaceBtn.disabled = true;
   registerStatusMessage.textContent = 'Registering...';
 
@@ -154,11 +186,12 @@ registerDetailsForm.addEventListener('submit', async (e) => {
       const res = await axios.post('/register_face', payload);
 
       if (res?.data?.status === 'success') {
+        registerStatusMessage.style.color = 'green'; // success colour
           registerStatusMessage.textContent = res.data.message || `Face registered: ${firstName} ${lastName}`; registerDetailsForm.reset(); registerDetailsForm.style.display = 'none'; // Clear and Hide form
           facePreviewImg.style.display = 'none'; // Hide preview
           capturedEncoding = null; // Clear captured encoding
           fetchFaces(); // Refresh list
-          startCaptureBtn.disabled = false; } // Re-enable capture button
+          registerFaceBtn.disabled = false; CaptureText.style.display = 'block'} // Re-enable register button and show h3 capture text;
       else {console.error('Unexpected response:', res.data);
         throw new Error('Registration completed with unexpected response. Check that the new registertion exits properly');}} // Handle unexpected success response format
   catch (error) {handleError_textcontext(error, registerStatusMessage, "registering face",registerFaceBtn, 'during face registration:');}
@@ -180,8 +213,9 @@ async function fetchFaces() {
           const fragment = document.createDocumentFragment();
           res.data.faces.forEach(face => {
               const li = document.createElement('li');
+              li.style.color = ''; // return colour to CSS default
               // Safely construct HTML or use textContent primarily
-              li.textContent = `ID: ${face.id}, Name: ${face.first_name} ${face.last_name}, Created: ${new Date(face.created_at).toLocaleString()}`;
+              li.textContent = `ID: ${face.id}, Name: ${face.first_name} ${face.last_name}, Created: ${new Date(face.created_at).toLocaleString('en-GB')}`;
               fragment.appendChild(li);
         });
           facesListEl.appendChild(fragment);} //Add the fragment and Re-enable button 
@@ -209,6 +243,7 @@ const deleteMessageEl = document.getElementById('delete-message');
 const faceIdErrorEl = document.getElementById('face-id-error');
 
 deleteFaceForm.addEventListener('submit', async (e) => { e.preventDefault();
+  deleteMessageEl.style.color = ''; // return colour to CSS default
   deleteBtn.disabled = true;
   const faceId = faceIdInput.value;
   // Clear previous messages
@@ -217,11 +252,11 @@ deleteFaceForm.addEventListener('submit', async (e) => { e.preventDefault();
 
   try { // Validate face ID input type
       if (!faceIdInput.checkValidity()) {faceIdErrorEl.textContent = 'Invalid Face ID. It must be a positive integer.'; deleteBtn.disabled = false; return;}
-      if (confirm(`Are you sure you want to delete the Registered face ${faceId}? This action cannot be undone.`)) {
+      if (confirm(`Are you sure you want to delete the Registered face with ID: ${faceId} ? This action cannot be undone.`)) {
           
             const res = await axios.delete(`/delete_face/${faceId}`);
           if (res) {alert(res.data?.message || `Face ID ${faceId} deleted successfully.`); faceIdInput.value = ''; fetchFaces(); deleteBtn.disabled = false; }} // Refresh the face list after deletion
-      else {alert(`Deletion of face ID ${faceId} was cancelled.`); deleteBtn.disabled = false;}} 
+      else {alert(`Deletion of face with ID: ${faceId} was cancelled.`); deleteBtn.disabled = false;}} 
   catch (error) {handleError_textcontext(error, deleteMessageEl,"to Delete face", deleteBtn, 'While deleting face:');} 
 });
 

@@ -1,5 +1,5 @@
 from python_standalones.recording_config import start_recording,stop_recording,check_disk_space,Global_Rec_variable
-from config.config import SC_DB_PATH, USER_LOG_DB_PATH,FRAME_TIME_INTERVAL,SD_CARD_MEMORY_LIMIT,FRAME_LIMITER
+from config.config import SC_DB_PATH, USER_LOG_DB_PATH,FRAME_TIME_INTERVAL,SD_CARD_MEMORY_LIMIT,GRACE_PERIOD_FRAMES,FRAME_LIMITER
 from python_standalones.logger import log_event
 
 import cv2
@@ -38,13 +38,14 @@ async def cleanup(): #Ensure camera resources are released at exit from shutdown
     global picam2
     try:
         if  picam2 is not None and hasattr(picam2, 'is_open') and picam2.is_open:
-            Global_cam_var.loop_flag = False
-            await asyncio.sleep(0.1) #Give the threads alittle time to shutdown to prevent a hiccup
             log_event("info", "Stoping camera (cleanup function automatic_camera_functions.py).")
             await asyncio.to_thread(picam2.stop)
             log_event("info", "Camera stopped, closing (cleanup function automatic_camera_functions.py).")
             await asyncio.to_thread(picam2.close)
             log_event("info", "Camera resources released and thread loops stopped using cleanup function (automatic_camera_functions.py).")
+            if Global_Rec_variable.recording and Global_Rec_variable.out is not None:
+                await asyncio.to_thread(stop_recording)
+                log_event("info", "Recording was active, calling stop_recording (cleanup function automatic_camera_functions.py).")
         else:
             is_open_status = 'Attribute missing or object is None' # Default explanation
             picam_exists = picam2 is not None
@@ -150,7 +151,7 @@ def camera_feed_function():
             except Exception as restart_error:
                 log_event("critical", f"Failed to reinitialize camera (camera_feed_function at automatic_camera_functions.py): {restart_error}", exc_info=True)
                 continue
-        
+
 def recognize_face():
     """Continuously scan for faces and recognize them automatically (Automatic Daemon Thread started at main.py)."""
     global picam2
@@ -158,7 +159,9 @@ def recognize_face():
     recognized_id = set()
     people = set()
     video_name = None # if by fringe chance log_event shows video_name as None, it indicates error in the code. should be "unknown+date" or "name+date"
-    # frame_counter = 0 # to control frame flow incase CPU cant handle 20fps on face recognition
+    no_face_counter = 0  # Counter for frames without face detection to prevent stop_recordings() trigger too fast
+    frame_counter = 0 # to control frame flow incase CPU cant handle 20fps on face recognition and to not call shutil.disk_usage("/") too often
+    
     while Global_cam_var.loop_flag:
         start_time = time.time()
         try:
@@ -167,26 +170,38 @@ def recognize_face():
             if frame_local_copy is None:
                 time.sleep(max(FRAME_TIME_INTERVAL - (time.time() - start_time), 0))
                 continue
-            # Write frame to video if recording
+            
+            frame_counter += 1  # Increment frame counter for flow control
+            # Check SD card memory every 100 frames to avoid overflow of the memory - the number 100 was chosen because bigger numbers can cause unitentional overflow in memory by small videos recordings
             if Global_Rec_variable.recording and not Global_Rec_variable.cleanup_flag:
-                Global_Rec_variable.out.write(frame_local_copy)
-                total, used, free = shutil.disk_usage("/")  # Assuming root partition for SD card
-                percent_used = (used / total) * 100 # check SD card percentage used
-                if percent_used >= SD_CARD_MEMORY_LIMIT:
-                    stop_recording()
-                    check_disk_space()
+                if frame_counter >= 100: # Check every 100 frames
+                    total, used, free = shutil.disk_usage("/")  # Assuming root partition for SD card
+                    percent_used = (used / total) * 100 # check SD card percentage used
+                    if percent_used >= SD_CARD_MEMORY_LIMIT: # if SD card is overloaded start cleanup and save recording - shutil.disk_usage("/") calculates the SD including saved OS memory, "df -h" would show 5% less avilable space
+                        stop_recording()
+                        check_disk_space()
+                        face_id = recognized_id if recognized_id else 'unknown'
+                        log_msg = f"While recording emergency disk cleanup initiated, {people} with ID's {face_id} were recognized, recorded, and saved to file {video_name}. (automatic_camera_functions.py)"
+                        log_event("warning", log_msg) 
+                        log_event_db("Warning!!", log_msg)
+                        recognized_name = "Unknown"  # Reset after recording ends
+                        recognized_id.clear()
+                        people.clear()
+                        continue  
+                    frame_counter = 0 # Reset frame counter after cleanup to restart the flow control
+
             #  !!!! --- INCASE FRAME CONTROL IS NEEDED --- !!!!
-            # frame_counter += 1
             # if frame_counter % FRAME_LIMITER == 0:
             #     time.sleep(max(FRAME_TIME_INTERVAL - (time.time() - start_time), 0))  # ~20 FPS, synced with camera_feed
-            #     frame_counter = 0
             #     continue
+            
             rgb_frame = cv2.cvtColor(frame_local_copy, cv2.COLOR_BGR2RGB) # Convert frame to RGB for face recognition
             # Detect faces
             face_locations = face_recognition.face_locations(rgb_frame)
             face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
             if face_encodings:
+                no_face_counter = 0
                 for face_encoding in face_encodings:
                     input_hash = compute_encoding_hash(face_encoding)
                     candidates = retrieve_candidates(input_hash)
@@ -210,17 +225,18 @@ def recognize_face():
                         video_name = f"{recognized_name}_{timestamp}"
                         frame_width = frame_local_copy.shape[1]
                         frame_height = frame_local_copy.shape[0]
-                        if not Global_Rec_variable.cleanup_flag:
-                            start_recording(video_name, frame_width, frame_height)
+                        start_recording(video_name, frame_width, frame_height)
             elif Global_Rec_variable.recording:
-                stop_recording()
-                face_id = recognized_id if recognized_id else 'unknown'
-                log_msg = f"{people} with ID's {face_id} were recognized, recorded, and saved to file {video_name}"
-                log_event("info", log_msg) 
-                log_event_db("Face detected", log_msg)
-                recognized_name = "Unknown"  # Reset after recording ends
-                recognized_id.clear()
-                people.clear()
+                no_face_counter += 1  # Increment counter when no face is detected
+                if no_face_counter >= GRACE_PERIOD_FRAMES:
+                    stop_recording()
+                    face_id = recognized_id if recognized_id else 'unknown'
+                    log_msg = f"{people} with ID's {face_id} were recognized, recorded, and saved to file {video_name}"
+                    log_event("info", log_msg) 
+                    log_event_db("Face detected", log_msg)
+                    recognized_name = "Unknown"  # Reset after recording ends
+                    recognized_id.clear()
+                    people.clear()
             time.sleep(max(FRAME_TIME_INTERVAL - (time.time() - start_time), 0))  # ~20 FPS, synced with camera_feed
         except cv2.error as e:
             log_event("critical", f"OpenCV error in recognize_face (automatic_camera_functions.py): {e}", exc_info=True)
@@ -230,7 +246,28 @@ def recognize_face():
             log_event("critical", f"recognize_face function error (automatic_camera_functions.py): {e}", exc_info=True)
             time.sleep(1)
             continue
-        
+
+def video_writer_function():
+    """"Threaded function to handle video writing to improve fps rate and prevent lag. part of other function makes delay."""
+    while Global_cam_var.loop_flag:
+        if Global_Rec_variable.recording and Global_Rec_variable.out is not None:
+            start_time = time.time()
+            try:
+                with Global_cam_var.frame_lock:
+                    frame_local_copy = Global_cam_var.frame.copy() if Global_cam_var.frame is not None else None
+                if frame_local_copy is None:
+                    time.sleep(max(FRAME_TIME_INTERVAL - (time.time() - start_time), 0))
+                    continue
+                # Write frame to video, aiming at 20 fps
+                Global_Rec_variable.out.write(frame_local_copy)
+                time.sleep(max(FRAME_TIME_INTERVAL - (time.time() - start_time), 0))
+            except Exception as e:
+                log_event("critical", f"video_writer_function error (automatic_camera_functions.py): {e}", exc_info=True)
+                time.sleep(max(FRAME_TIME_INTERVAL - (time.time() - start_time), 0))
+                continue
+        else:
+            time.sleep(0.25)  # Short sleep when not recording to reduce CPU load
+
 # --------IMPROVMENT OPTIONS FOR LATER CASE -----------
 # checking if a frame freezed: 
 # saving former frame and compare it to the new request frame to see if its the exact 1

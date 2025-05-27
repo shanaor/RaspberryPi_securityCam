@@ -35,9 +35,12 @@ try {
 
         if (response.status === 200 && response.data.message === "Login successful") {window.location.href = "/Livefeed.html";}} 
 catch (error) {
+      const status = error.response?.status;
+      const detail = error.response?.data?.detail
         // Check for 401 (Invalid credentials), Check for 500 (Internal server error)
-      if (error.response && error.response?.status === 401) {console.error('Login credentials error in login.js:', error); errorMessage.textContent = 'Invalid username or password';} 
-      else if (error.response && error.response?.status === 500) {console.error('Login Internal server error in login.js:', error); errorMessage.textContent = 'Server error, please try again, if consistent through the day then report to support';} 
+      if (status === 401) {console.error('Login credentials error in login.js:', error); errorMessage.textContent = detail;} 
+      else if (status === 403) {console.error('Unauthorized access.js:', error); errorMessage.textContent = detail;}
+      else if (status === 500) {console.error('Login Internal server error in login.js:', error); errorMessage.textContent = detail;} 
         // Handle any other unexpected errors
       else if (error.request) {console.error('No response received from server:', error.request); errorMessage.textContent = "Network error: Unable to reach the server. Please check your connection.";}
       else {console.error('Login unexpected error in login.js:', error); errorMessage.textContent = 'An unexpected error occurred, try again';}} 

@@ -1,5 +1,6 @@
-from config.config import CONFIGTXT, CONFIG_BACKUP_DIR , BRIGHTNESS_LOG_FILE, LOG_DIR
+from config.config import CONFIGTXT, CONFIG_BACKUP_DIR , BRIGHTNESS_LOG_FILE , BRIGHTNESS_THRESHOLD, MAX_BACKUP_DIR_SIZE_MB, TARGET_BACKUP_DIR_SIZE_MB, BYTES_IN_MB
 from python_standalones.automatic_camera_functions import get_frame_safe,Global_cam_var
+from python_standalones.day_night_folder_protection import cleanup_backup_directory
 from python_standalones.logger import log_event
 
 import cv2
@@ -9,8 +10,6 @@ import time
 import shutil
 import datetime
 
-# Threshold for night vision activation
-BRIGHTNESS_THRESHOLD = 50  # Adjust based on testing
 last_known_log_file_date = None
 
 try: #This is part of triple attempts to make sure that the directory is created due to dealing with the config file. so it is importent.
@@ -42,7 +41,7 @@ def get_current_mode():
                     return "night"
         return "normal"
     except FileNotFoundError as e:
-        log_event("critical", f"Config file not found: {CONFIGTXT} at get_current_mode (day_night.py): {e}")
+        log_event("critical", f"Config file not found: {CONFIGTXT} at get_current_mode (day_night.py): {e}") #Return "unknown" to avoid breaking the script, allow the app continue, and signal error to the programmer
         return "unknown"
     except PermissionError as e:
         log_event("critical", f"Permission denied reading {CONFIGTXT} at get_current_mode (day_night.py): {e}")
@@ -50,10 +49,19 @@ def get_current_mode():
     except Exception as e:
         log_event("critical", f"Unexpected error at get_current_mode function (day_night.py): {e}", exc_info=True)
         return "unknown"
+
     
 def update_config(new_mode):
     """Update the Raspberry Pi config file to switch modes and schedule reboot.
-    Attempts to backup config.txt first to CONFIG_BACKUP_DIR, then to its own directory on failure."""
+    Attempts to backup config.txt first to CONFIG_BACKUP_DIR, then to its own directory on failure. Calls for cleanup of directory if too big."""
+    
+        # --- Cleanup backup directory before creating a new backup ---
+    try:
+        cleanup_backup_directory(CONFIG_BACKUP_DIR, MAX_BACKUP_DIR_SIZE_MB * BYTES_IN_MB, TARGET_BACKUP_DIR_SIZE_MB * BYTES_IN_MB)
+    except Exception as e_cleanup:
+        log_event("error", f"Error encountered during pre-backup cleanup: {e_cleanup}", exc_info=True)
+    # --- End of cleanup ---
+    
     backup_made_successfully = False
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     config_filename = os.path.basename(CONFIGTXT)

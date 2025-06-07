@@ -21,9 +21,15 @@ USER_LOG_DB_PATH = os.path.join(BASE_DIR, "DB", "security_cam_users_logs.db")
 VIDEO_FOLDER = os.path.join(BASE_DIR, "recordings")
 CONFIG_BACKUP_DIR = os.path.join(BASE_DIR, "config", "backups", "config")
 LOG_DIR = os.path.join(BASE_DIR, "config", "logs") 
+
 #  -------------- DAY_NIGHT_LOGS ------------------
 BRIGHTNESS_LOG_FILE = "camera_brightness_log.txt" # to track day and night 
 CONFIGTXT = "/boot/firmware/config.txt"
+BRIGHTNESS_THRESHOLD = 300  # Threshold for night vision activation // Adjusted based on testing
+#  -------------- DAY_NIGHT_CONFIG_BACKUP ------------------
+MAX_BACKUP_DIR_SIZE_MB = 2000
+TARGET_BACKUP_DIR_SIZE_MB = 100
+BYTES_IN_MB = 1024 * 1024
 #  ------------- TOKEN ---------------------
 TOKEN_EXPIRATION_HOURS = 12
 #  ---------- FRAMES -------------
